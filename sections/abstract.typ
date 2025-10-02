@@ -1,0 +1,11 @@
+#import "/lib.typ": todo
+
+#align(center)[
+  = Abstract
+]
+
+Academic timetabling is a complex combinatorial optimization problem that must satisfy diverse constraints, such as room availability, teacher schedules, and student group assignments. While much research has focused on generating complete timetables from scratch @Ceschia_2023, real-world practice reveals that the greater challenge lies in editing and maintaining timetables once they are published. Polls indicate that more than 60% of educational institutions must revise at least 10% of their schedules after release due to unforeseen disturbances @coursedog2023. Such revisions include teacher illness, room unavailability, or new course requirements, and are often performed manually, consuming significant time and effort.
+
+This thesis addresses the problem of *interactive timetable editing and adaptive rescheduling*. The proposed system integrates with existing workflows used by the Department of Education at Innopolis University, built on Google Sheets and Microsoft Outlook. It provides real-time conflict detection, automated constraint checking, and minimally disruptive rescheduling using optimization techniques such as Constraint Programming @veenstra2016. To further improve usability, the system employs Large Language Models (LLMs) as a natural language interface, translating informal user requests into formal scheduling constraints @tang2024automatedconversionstaticdynamic. This hybrid human–AI approach enables schedulers to interact with the system in plain English while preserving mathematical rigor in optimization.
+
+The novelty of this research lies in combining state-of-the-art optimization, interactive UI integration, and AI assistance in a single practical tool. The system bridges the gap between academic prototypes, which emphasize algorithms but neglect usability, and commercial solutions, which provide user-friendly interfaces but rely on outdated methods @oude-vrielink2019. Through this work, we aim to demonstrate that blending algorithmic efficiency, natural language interaction, and workflow integration can create a scheduling assistant that is both scientifically innovative and practically valuable.
