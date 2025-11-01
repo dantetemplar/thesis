@@ -98,9 +98,9 @@ Area of Specialization / Academic Program Title: \
   ),
   field(content: info.supervisor),
   signature,
-  // multilang(ru: [Консультанты], en: [Consultants]),
-  // field(),
-  // signature
+  multilang(ru: [Консультанты], en: [Consultants]),
+  field(content: info.consultants),
+  signature
 )
 
 #align(center + horizon, topic)
