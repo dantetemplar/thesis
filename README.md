@@ -39,7 +39,7 @@ Then compile the main document as usual. The main file embeds `title.pdf` from t
 
 For editing in **VS Code** or **Cursor**, install the **[Tinymist](https://github.com/Myriad-Dreamin/tinymist)** extension. It provides syntax highlighting, jump-to-definition, preview, and can run the compiler using the same root as your project.
 
-Configure the **root directory** / main file to this repo and the entry `.typ` above so paths like `title.pdf` and `sections/` resolve correctly.
+Open main file in IDE and run "Typst: Pin the Main File to the Currently Open Document" command, via Ctrl+Shift+P.
 
 
 ## Repository layout (short)
