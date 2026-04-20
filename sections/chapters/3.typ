@@ -90,6 +90,9 @@ In operational planning, besides feasibility, the schedule is expected to avoid 
 - no more than 5 meetings per group per day where possible;
 - workload clustered into fewer weekdays for both groups and instructors where possible;
 - minimized Saturday and late-evening classes (later than 18:00);
+- avoid assigning small audiences to excessively large rooms where possible (prefer the smallest suitable room; for example, assigning a 2-student group to a 60-seat room is considered operationally unreasonable);
+- for back-to-back classes, prefer the same room to avoid unnecessary transitions; instructor-side continuity has higher priority than group-side continuity;
+- for lecture -> tutorial sequences, prefer immediate adjacency and placement in the same room;
 - lecture/tutorial placement preferably in morning or afternoon slots;
 - for loaded undergraduate years (especially years 1-2), lecture-tutorial-lab chains are preferably placed on the same day.
 
