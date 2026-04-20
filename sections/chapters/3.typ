@@ -24,19 +24,20 @@ At Innopolis University, the academic year is split into Fall, Spring, and Summe
 
 Innopolis University is relatively small (around 2,000 students). This matters for external validity: many universities are an order of magnitude larger and operationally more complex, with multi-campus layouts, multiple departments/faculties, and broader governance layers. The workflow described here is designed for this institutional scale, while remaining extensible for larger deployments.
 
-The university has both bachelor and master programs, including English-taught and Russian-taught tracks. For bachelor students, years 1-3 are course-based and year 4 is thesis-only (no regular taught timetable). For master students, year 2 is also thesis-focused and does not require regular timetable generation.
+The university has both bachelor and master programs, including English-taught and Russian-taught tracks. Bachelor tracks include Software Development, Cybersecurity, Data Science, AI, Robotics, and Game Development; master programs (for example, SE, AIDE, and Robotics) follow separate curricula. For bachelor students, years 1-3 are course-based and year 4 is thesis-only (no regular taught timetable). For master students, year 2 is also thesis-focused and does not require regular timetable generation.
 
 Students are organized into academic groups (for example, `B22-CBS-02`), where cohort, track, and group index are encoded in the group ID. However, groups are not fully disjoint:
 
 - first-year English classes use separate level groups;
 - some students attend classes from another year (retakes);
-- early bachelor years share many courses across tracks, while later years become track-specific.
+- bachelor years 1-2 share most courses across tracks, while year 3 and later are increasingly track-specific.
 
 Core courses usually follow a lecture-tutorial-lab pattern:
 
-- lecture and tutorial are often delivered to a full audience;
-- labs are usually scheduled per group and commonly taught by teaching assistants;
-- in real data, exceptions are frequent (missing components, co-teaching teams, multiple meetings per week, split audiences, mixed-track audiences).
+- lecture is typically one weekly meeting delivered to the full audience;
+- tutorial is typically one weekly meeting for the same full audience, often scheduled adjacent to lecture;
+- lab is typically one weekly meeting per academic group and commonly taught by teaching assistants;
+- in real data, exceptions are frequent (missing components, co-teaching sets, multiple lecture/tutorial meetings per week, split audiences, mixed-track and mixed-program audiences).
 
 #figure(
   image("../../figures/core-courses-timetable-spreadsheet.png", width: 100%),
@@ -65,7 +66,7 @@ Electives follow separate institutional rules:
 
 Sports sections are treated as a separate process: students must accumulate 30 academic hours, but sports section scheduling is managed externally and is out of scope for this assistant.
 
-The university uses one main campus building with rooms of different capacities (lecture halls, seminar rooms, labs). Online delivery is also possible and does not consume physical room resources. Teaching staff includes professors and teaching assistants; instructor availability and instructor preferences are operationally important, especially because some teaching assistants are also students.
+The university uses one main campus building with rooms of different capacities (lecture halls, seminar rooms, labs). Online delivery is also possible and does not consume physical room resources. Teaching staff includes professors and teaching assistants; instructor availability and instructor preferences are operationally important, especially because some teaching assistants are also students. Instructor workload is also usually expected to be clustered into fewer weekdays with a practical daily limit of around 4-5 meetings where possible.
 
 Large external events regularly create temporary room blackouts. A concrete case is the IT conference Merge 2026: on 17-18 April, large lecture halls 105, 106, 107, and 108 were occupied by conference tracks for the full working day, which overlapped regular teaching windows.
 
@@ -85,9 +86,10 @@ Block-level operations also require explicit support: each semester is split int
 
 In operational planning, besides feasibility, the schedule is expected to avoid overloaded days and uncomfortable placement. Typical targets are:
 
-- around 2-3 distinct subjects per group per day;
-- no more than 4 meetings per day where possible (for both student groups and instructors);
-- minimized Saturday and late-evening classes;
+- no more than 3 distinct subjects per group per day where possible;
+- no more than 5 meetings per group per day where possible;
+- workload clustered into fewer weekdays for both groups and instructors where possible;
+- minimized Saturday and late-evening classes (later than 18:00);
 - lecture/tutorial placement preferably in morning or afternoon slots;
 - for loaded undergraduate years (especially years 1-2), lecture-tutorial-lab chains are preferably placed on the same day.
 
