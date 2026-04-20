@@ -1,6 +1,8 @@
 #import "template.typ": template, numbering
 
-#include "sections/title.typ"
+#set page(margin: 0pt)
+#image("title.pdf", width: 100%, height: 100%)
+#pagebreak()
 
 // Title has its own styles that differ from the template. Therefore, we apply template only after title
 #show: template

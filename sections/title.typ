@@ -1,4 +1,21 @@
-#let info = yaml("/info.yaml")
+#let info = (
+  topic: [
+    Интерактивный помощник по редактированию и оптимизации расписания в образовательных учреждениях /
+    Interactive Assistant for Timetable Editing and Optimization in Educational Institutions
+  ],
+  student: [
+    Руслан Бельков /
+    Ruslan Belkov
+  ],
+  supervisor: [
+    Алексей Потёмкин /
+    Alexey Potyomkin
+  ],
+  consultants: [
+    Александр Гасников /
+    Alexander Gasnikov
+  ],
+)
 
 #set text(size: 14pt)
 #set table(
