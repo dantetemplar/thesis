@@ -1,243 +1,370 @@
-#import "/lib.typ": todo
+= Implementation
 
-= Implementation and Results
+This chapter describes the implemented system corresponding to the design presented in Chapter 3. The implementation integrates parser-based legacy data handling, formal schedule configuration, CP-SAT optimization, and a web-based interactive assistant for timetable editing, validation, and analysis.
 
-Results were validated through a set of reproducible experiments over varied data. Scripts and code are available online: #link("https://github.com/metafates/saiga")
+== Implementation Stack and Repositories
 
-== Hardware and Software
+The implementation is distributed across three codebases:
 
-We used an Apple M1 SOC in our tests. We summarize the characteristics of our hardware platform in @hardware.
+- *Schedule assistant optimizer* (`schedule-assistant`): Python-based formal model, solver execution, and verification checks.
+- *Schedule platform backend/frontend* (`schedule-builder-backend`, `schedule-builder-frontend`): data extraction, compatibility checks, Outlook integration, and service orchestration.
+- *Interactive web UI* (`website`): settings and timetable workspaces for operational users.
 
-Our software was written using Rust 1.84. We used rustc compiler with `-Ctarget-cpu=native -Ccodegen-units=1 -Clto=fat` optimization flags, to ensure our build is able to use all available capabilities of the target hardware.
+Core technologies:
 
-Alacritty and Wezterm were chosen as baselines due to their dominance in open-source Rust terminal ecosystem and their contrasting design philosophies (batch vs. byte parsing). They are both mature and well-optimized. They were initially released in 2017 and 2019 respectively. See @competitive-terminals.
+- Backend:
+  - Python + uv,
+  - FastAPI,
+  - Microsoft Outlook for room-booking integration via exchangelib.
+- Optimizer:
+  - Python + uv,
+  - Google OR-Tools CP-SAT #footnote[https://developers.google.com/optimization],
+  - httpx.
+- Frontend:
+  - React + Vite,
+  - TanStack Query, Tanstack Router,
+  - TailwindCSS,
+  - DaisyUI,
+  - Yjs,
+  - Valtio
 
-#figure(
-  table(
-    columns: (1fr, 1fr, 2fr, 1fr),
-    inset: 10pt,
-    align: horizon + center,
-    table.header(
-      [SoC], [Max. Frequency], [Microarchitecture], [Memory],
-    ),
-    [Apple M1], [3.2 GHz], [Firestorm & Icestorm (ARM64, 2020)], [LPDDR4X],
-  ),
-  caption: [Hardware specifications of the Apple M1 platform used for all performance experiments],
-) <hardware>
+== Data Pipeline Implementation
 
-#figure(
-  table(
-    columns: (1fr, 1fr, 2fr),
-    table.header(
-      [Name], [Snapshot], [Link]
-    ),
-    [Saiga], [March 10th 2025], [#link("https://github.com/metafates/saiga")],
-    
-    [Alacritty], [0.15.1], [#link("https://github.com/alacritty/alacritty")],
-    
-    [Wezterm], [February 3rd 2024], [#link("https://github.com/wezterm/wezterm")],
-  ),
-  caption: [List of terminal emulator implementations used for performance comparison.]
-) <competitive-terminals>
+#heading(level: 3, numbering: none, outlined: false)[From heterogeneous spreadsheets to formal configuration]
 
-== ANSI Parsing
-
-The three terminal emulators -- Saiga (our prototype), Alacritty, and Wezterm - are based on finite state automata (FSA) described by @vt-parser for parsing ANSI control sequences. However, while Wezterm does not deviate from the baseline FSA implementation, Saiga and Alacritty introduce unique optimization. These optimizations yield major performance improvements, as shown by the benchmark results in @vte-benchmark-results.
-
-- *Saiga* uses input batch processing with SIMD-accelerated UTF-8 validation. First, it processes input in variable _batches_ of bytes, reducing per-byte overhead by operating on contiguous blocks of data. This approach reduces function calls, minimizes branch mispredictions, and improves cache locality. One more advantage of this approach is that it opens further possibilities for optimizing processing, since we identify which bytes we will need to handle next and operate on chunks of data. This leads us to the second optimization Saiga uses - SIMD based UTF-8 validation, developed by @validating-utf8-in-less-than-one-instruction-per-byte-2010. By validating several bytes simultaneously Saiga reduces validation latency - one of the major bottlenecks for VT parsers. The FSA transitions remain stateful but operate on pre-validated batches, allowing the parser to focus on control sequence logic without interleaving validation checks. This design is  effective for datasets, such as `unicode` or `missing_glyphs`, where multi-byte UTF-8 characters dominate and require frequent validation.
-
-- *Alacritty* uses batch processing with scalar validation. It similarly processes input in batches, avoiding byte-by-byte overhead, but uses scalar UTF-8 validation algorithm. This creates a linear dependence on input size and validation time, which partly neglects optimizations that batch processing introduce. For example, in the `unicode` benchmark, Alacritty’s throughput (1.05 GB/s) is 2.34 times slower than Saiga’s SIMD approach with 2.33 GB/s throughput. Its FSA transitions are similar to Saiga’s, resulting comparable parsing efficiency for non-textual inputs.
-
-- *Wezterm* adopts a traditional byte-by-byte processing algorithm, invoking FSA for each individual byte. While the FSA itself is similar, the lack of optimizations described above leads to worse performance across all benchmarks as seen further in @vte-benchmark-results.
-
-=== Datasets
-
-Parsing speed is dependent on the content of the input data. For a fair assessment, we chose a wide range of datasets. See @vte-datasets-stats for detailed statistics concerning the chosen files.
+The initial timetable source was a highly irregular Google Spreadsheet with many merged semantics, variable sections, and mixed manual conventions.
 
 #figure(
-  caption: [Dataset statistics. Printed stands for plain text. Executed are C0 commands. OSC, CSI & ESC stands for the number of dispatched multi-byte sequences for each type],
-  table(
-    columns: 4,
-    table.header(
-      [Name], [Printed], [Executed], [Size],
-    ),
-    [ascii_all], [79], [32], [128],
-    [ascii_printable], [95], [0], [95],
-    [cursor_motion], [83200], [83200], [721 kB],
-    [dense_cells], [83200], [83227], [2.2 MB],
-    [light_cells], [83200], [27], [83 kB],
-    [medium_cells], [69936], [19678], [178 kB],
-    [missing_glyphs], [1286400], [202], [1.3 MB],
-    [sync_medium_cells], [69936], [20602], [186 kB],
-    [unicode], [46606], [2], [138 kB],
-    [no_print], [0], [200000], [910 kB]
-  )
-) <vte-datasets-stats>
-
-While mostly synthetic, these datasets reflect extreme cases observed in real workloads:
-
-- `unicode`: Heavy I/O in multilingual environments (e.g., logging servers).
-- `no_print`: CLI tools, such as top or kubectl, that prioritize control sequences.
-
-Benchmarks were sourced from Alacritty's vtebench #footnote[https://github.com/alacritty/vtebench] to ensure comparability.
-
-=== Running Time Distribution
-
-In @vte-benchmark-results we present the VT parser benchmarks results for each dataset (@vte-datasets-stats).
-
-Our experiments reveal different performance profiles across three terminal emulators. Our implementation (saiga) shows consistently better throughput in text-heavy workloads, in particular for datasets dominated by ASCII or Unicode characters (`ascii_printable` and `unicode` benchmarks), where SIMD-accelerated batch processing yielded a 2.4–2.6× throughput improvement over Alacritty, which uses batch processing without SIMD UTF-8 validation, and 4.8-9.2× over Wezterm parser, which uses byte-by-byte parser without further hardware optimizations. These results highlight the advantages of hardware acceleration for VT parsers, as Saiga’s implementation minimizes per-byte processing overhead -- a critical factor given how much text terminals are processing. The `missing_glyphs` benchmark further outlines this divergence: Saiga processes 2.59 GB/s compared to Alacritty's 1.44 GB/s, despite both implementations are based on batch processing technique.
-
-In control sequence-intensive workloads (`cursor_motion`, `dense_cells`), where parsing efficiency is not dominated by SIMD optimizations, Saiga maintains narrower but consistent leads (on average 4-18% faster than Alacritty). However, both implementations outperform Wezterm by 40-50%. This suggests that batch processing alone - common to both Saiga and Alacritty - provides baseline acceleration for command parsing, compared to byte-by-byte processing, but Saiga’s architectural optimizations, such as reduced branching and branch mispredications, yield incremental gains.
-
-Expanding further on control sequence workloads, the `no_print` benchmark, exclusively stressing OSC, CSI and ESC sequences, isolates plain text parsing from other targets. Here, Saiga and Alacritty exhibit similar performance at 337 and 340 MB/s respectively. This parity implies comparable command parsing efficiency between the batch processor, while Wezterm lags at 148 MB/s, confirming the cost of non-batch parsing.
-
-#pagebreak()
-
-#figure(
-  caption: [ANSI Parsing Throughput rounded to MB _(higher is better)_.
-  Median time per dataset _(lower is better)_],
-  table(
-    columns: 4,
-    table.header(
-      [Dataset], [Terminal], [Median Time], [Throughput],
-    ),
-    table.cell(rowspan: 3, align: horizon)[ascii_all],
-    [alacritty], [139.35 ns], [918 MB/s],
-    [saiga], [85.504 ns], [1.5 GB/s],
-    [wezterm], [287.89 ns], [444 MB/s],
-
-    table.cell(rowspan: 3, align: horizon)[ascii_printable],
-    [alacritty], [84.158 ns], [1.1 GB/s],
-    [saiga], [39.049 ns], [2.4 GB/s],
-    [wezterm], [186.21 ns], [510 MB/s],
-    
-    table.cell(rowspan: 3, align: horizon)[cursor_motion],
-    [alacritty], [1.9165 ms], [376 MB/s],
-    [saiga], [1.7876 ms], [403 MB/s],
-    [wezterm], [4.2954 ms], [168 MB/s],
-    
-    table.cell(rowspan: 3, align: horizon)[dense_cells],
-    [alacritty], [5.3926 ms], [416 MB/s],
-    [saiga], [4.4848 ms], [501 MB/s],
-    [wezterm], [9.6800 ms], [232 MB/s],
-    
-    table.cell(rowspan: 3, align: horizon)[light_cells],
-    [alacritty], [58.178 µs], [1.4 GB/s],
-    [saiga], [33.047 µs], [2.5 GB/s],
-    [wezterm], [160.77 µs], [518 MB/s],
-    
-    table.cell(rowspan: 3, align: horizon)[medium_cells],
-    [alacritty], [437.68 µs], [407 MB/s],
-    [saiga], [407.86 µs], [438 MB/s],
-    [wezterm], [910.35 µs], [196 MB/s],
-    
-    table.cell(rowspan: 3, align: horizon)[missing_glyphs],
-    [alacritty], [891.34 µs], [1.4 GB/s],
-    [saiga], [497.82 µs], [2.6 GB/s],
-    [wezterm], [2.4737 ms], [520 MB/s],
-    
-    table.cell(rowspan: 3, align: horizon)[sync_medium_cells],
-    [alacritty], [458.56 µs], [405 MB/s],
-    [saiga], [427.20 µs], [435 MB/s],
-    [wezterm], [958.62 µs], [194 MB/s],
-
-    table.cell(rowspan: 3, align: horizon)[unicode],
-    [alacritty], [131.77 µs], [1 GB/s],
-    [saiga], [59.214 µs], [2.3 GB/s],
-    [wezterm], [546.40 µs], [253 MB/s],
-    
-    table.cell(rowspan: 3, align: horizon)[no_print],
-    [alacritty], [2.6711 ms], [341 MB/s],
-    [saiga], [2.6962 ms], [338 MB/s],
-    [wezterm], [6.1493 ms], [148 MB/s],
-  )
-) <vte-benchmark-results>
-
-#pagebreak()
-
-Mixed workloads, such as `medium_cells` and `sync_medium_cells`, demonstrate that Saiga maintains 7-10% throughput lead over Alacritty. The datasets combine moderate text volumes with frequent control sequences, allowing Saiga to use SIMD UTF-8 validation while benefiting from batch-parsed command processing. The stability of this advantage for both synchronized and unsynchronized variants suggests resilience to synchronization overhead (in `sync_medium_cells`).
-
-Architecturally, the results validate three key design principles:
-
-1. *Batch processing* provides fundamental throughput gains over byte-by-byte parsing, as evidenced by Alacritty’s consistent 2-3x speedups over Wezterm across all benchmarks.
-2. *SIMD integration* enhances batch processing for text-heavy workloads, with Saiga achieving superlinear speedups over Alacritty where UTF-8 validation dominates, resulting 2.4-2.6x performance improvements.
-3. *Control sequences optimization* remains important even with batch processing. While Saiga provides consistent incremental leads in command-heavy workloads, likely due to branching optimizations, utilizing SIMD for parsing control sequences could result significant speedups, as shown by benchmarks with plain text-heavy data.
-
-These findings point to Saiga's VT parser hybrid architecture, combining batch processing baseline efficiency with hardware acceleration through SIMD UTF-8 validation. Our implementation avoids common vectorization pitfalls, such as throughput degradation on non-vectorizable data. This dual optimization suggests broad applicability across terminal emulation workloads. Future work could explore SIMD utilization for parsing commands, potentially pushing the boundaries of efficient terminal emulation even further.
-
-Results are specific to ARM64's memory latency and SIMD throughput. Performance of X86 may vary due to different vectorization overhead.
-
-== Rendering to the screen
-
-To evaluate rendering speed for these terminals, we conducted benchmarks using the following approaches:
-
-- High-frequency DOOM-fire animation #footnote[https://github.com/const-void/DOOM-fire-zig]. It stress-tests real-time rendering for animations (e.g., progress bars, REPL UIs). This benchmark, modifying approximately 4800 cells per frame in a 120×40 terminal grid, measures frames per second rendered for each terminal.
-- Bulk `cat` execution of a large file into standard output. It emulates bulk output scenarios (e.g., log dumps, CI/CD pipelines). The results show how parsing strategies, rendering implementations and GPU API constraints interact across Saiga, Alacritty and Wezterm. 
-
-Both Saiga (our implementation) and Wezterm use WebGPU, which compiles to Metal on macOS, while Alacritty use OpenGL 4.1.
-
-#pagebreak()
-
-#figure(
-  caption: [DOOM-fire benchmark. Hybrid Alacritty uses Saiga's VT parse],
-  table(
-    columns: 5,
-    align: horizon,
-    table.header(
-      [Terminal], [Application FPS], [OS FPS], [Rendering Backend], [Partial redraw]
-    ),
-    [Alacritty], [484], [60], [OpenGL], [yes],
-    [Hybrid Alacritty], [570], [60], [OpenGL], [yes],
-    [Saiga], [450], [38], [WebGPU], [no],
-    [Saiga], [443], [38], [WebGPU], [yes],
-    [Wezterm], [736], [36], [WebGPU], [no],
-  ),
+  image("../../figures/core-courses-timetable-spreadsheet.png", width: 100%),
+  caption: [Example of the original spreadsheet layout used by timetable planners before formal model integration.]
 )
 
-Alacritty, using partial screen redraws achieves a stable 60 FPS on 60 HZ screen due to vertical synchronization, as observed by the macOS developer tools with Quartz Debug and 484 FPS reported by the application. As an experiment, we were able to substitute Alacritty's VT parser with our optimized implementation, which provides a compatible API. It resulted 17.8% application FPS boost to 570, while preserving the same stable 60 FPS for the OS window. Replacing Alacritty's parser with Saiga's isolates parsing efficiency from rendering, confirming that achieved gain is attributable solely to reduced CPU contention.
+#figure(
+  image("../../figures/core-courses-timetable-spreadsheet-large-view.png", width: 100%),
+  caption: [Large-view fragment of the weekly core-courses spreadsheet used in manual planning workflow.]
+)
 
-By contrast, Saiga showed worse performance. Saiga, without partial screen redraws, reported 450 FPS in application, but delivered 38 FPS to the OS window. Using partial updates resulted in worse performance, at 443 and 33 FPS in application and OS respectively. WebGPU's security model prohibits direct surface access, forcing Saiga to implement partial redraws via auxiliary buffers. This introduces extensive copying on each frame, therefore eliminating the benefits of partial screen updates.
+To operationalize optimization, the data pipeline was implemented in two steps:
 
-Wezterm's result of 736 application FPS paired with 36 OS FPS suggests a strategy of frame queuing without synchronization.
+1. parse spreadsheet structures into normalized machine-readable objects;
+2. map normalized objects into a structured CB-CTT data model.
 
-The `cat` benchmark, which processes a 100MB ASCII file, stresses the renderer with bulk text throughput. The benchmark can be reproduced with the following BASH script on macOS (@testdata-generation):
+This conversion made scheduling constraints explicit and checkable, replacing implicit spreadsheet semantics.
+
+#heading(level: 3, numbering: none, outlined: false)[Conflict-checking plugin during migration]
+
+A spreadsheet plugin was implemented as an intermediate migration step before the final assistant UI. It checked teacher occupancy, room occupancy, and structural inconsistencies directly in the spreadsheet workflow and returned actionable feedback to planners.
 
 #figure(
-  caption: [BASH script to generate 100 MB file of random bytes.],
-  kind: "figure",
-```bash
-base64 --input=/dev/urandom | head -c 100000000 > 100mb.txt
-time cat 100mb.txt
+  image("../../figures/spreadsheet-plugin-input-token.png", width: 100%),
+  caption: [Authentication and run flow of the spreadsheet conflict-checking plugin.]
+)
+
+#figure(
+  image("../../figures/spreadsheet-plugin-conflicts-capacity-exceeded.png", width: 100%),
+  caption: [Conflict output example: room capacity exceeded.]
+)
+
+#figure(
+  image("../../figures/spreadshett-plugin-conflicts-teacher-is-busy.png", width: 100%),
+  caption: [Conflict output example: instructor overlap.]
+)
+
+#figure(
+  image("../../figures/spreadsheet-plugin-room-conflicts-go-to-cell.png", width: 100%),
+  caption: [Conflict output with direct navigation back to source cells.]
+)
+
+This plugin stage reduced migration risk in three ways:
+
+- it provided immediate conflict detection in the legacy environment;
+- it validated parser outputs against real operational spreadsheet data;
+- it revealed practical limits of further development inside Google Sheets (complex parsing, limited interaction model, constrained extensibility).
+
+For these reasons, the final implementation moved to a dedicated integrated assistant instead of extending spreadsheet tooling.
+
+== Optimizer Implementation
+
+#heading(level: 3, numbering: none, outlined: false)[Curriculum-Based model and domain entities]
+
+The optimizer accepts a structured model with strict validation rules. Implemented entities include:
+
+- term with date interval, weekdays, and slot starts;
+- rooms and capacities;
+- instructors;
+- programs/tracks and group selectors;
+- student groups with estimated/enumerated membership;
+- courses with component-level requirements.
+
+For instructors, the configuration includes preference windows used as soft penalties in optimization. Preference penalties are priority-weighted by instructor role, so violations for critical instructors can be penalized more strongly than violations for lower-priority roles.
+
+The model supports:
+
+- shared and per-group meetings;
+- direct group IDs and selector expansion (`@program`, `@program/track`);
+- instructor pools and co-teaching options;
+- explicit `per_week` teaching frequency;
+- component relations (`relates_to`) for ordering and coupling preferences.
+
+This flexibility covers real curriculum patterns: core triplets (lecture/tutorial/lab), English groups, elective buckets, and mixed audience classes.
+
+Illustrative configuration fragment:
+
+```yaml
+courses:
+  - id: calculus
+    components:
+      - kind: lecture
+        groups: "@BS_Y1_EN"
+        per_week: 1
+      - kind: lab
+        groups: "@BS_Y1_EN"
+        per_group: true
+        per_week: 1
+        instructors: ["ta_pool_a", "ta_pool_b"]
+        relates_to:
+          - kind: lecture
+            relation: after
 ```
-) <testdata-generation>
+
+#heading(level: 3, numbering: none, outlined: false)[Meeting expansion and decision model]
+
+The solver transforms course components into concrete meeting instances over the planning horizon. For each meeting, the model creates variables for:
+
+- day index,
+- local slot index and absolute timeline index,
+- room selection,
+- instructor option.
+
+Table-level mapping between design and implementation:
+
+- `x_(m,d,t,r,i)` - assignment decision for meeting/date-slot/room/instructor alternative - binary;
+- `int_room_(m,r)` - optional room interval activated by room choice - interval;
+- `int_inst_(m,i)` - optional instructor interval activated by instructor choice - interval;
+- `y_(m,d,t)` - selected temporal placement - binary.
+
+Resource usage is represented via interval variables and optional intervals for room/instructor alternatives. Hard no-overlap constraints are applied to:
+
+- each student group,
+- each shared student (for cross-group memberships),
+- each room,
+- each instructor.
+
+In the reference weekly solve, instructor and room availability are not enforced as hard constraints. These constraints are handled later at calendar-level adaptation, where date/week conflicts are diagnosed and resolved in user-driven workflow with optional solver assistance.
+For dual-role persons (instructor and student), the model also enforces no-overlap between their teaching assignments and their own student timetable.
+
+Overlap detection is interval-based and therefore also captures partial overlaps between heterogeneous slot grids (for example, 12:10-13:40 intersecting 12:40-14:10), not only identical slot labels. This direct interval modeling ensures strict feasibility before optimization quality is considered.
+
+#heading(level: 3, numbering: none, outlined: false)[Room-capacity handling]
+
+Room feasibility is implemented with practical fallback logic:
+
+- default: room must fit expected attendance;
+- if full fit is unavailable or attendance is large, a thresholded fallback is allowed;
+- strong penalties discourage oversized rooms.
+
+This mechanism avoids frequent infeasibility in real institutional datasets while still prioritizing appropriate room assignment.
+
+#heading(level: 3, numbering: none, outlined: false)[Multi-phase objective solving]
+
+The CP-SAT solve is implemented as a multi-phase process:
+
+- phase 1: pedagogical structure quality (ordering, adjacency/coherence),
+- phase 2: timetable comfort and resource quality.
+
+In phase 2, instructor preferences are optimized as soft terms together with timetable comfort terms (late slots, Saturday load, and distribution quality). Instructor-preference penalties are scaled by priority weights. Date-specific availability is handled in the post-generation adaptation flow, not in the weekly reference solve. After each phase, the achieved objective value is fixed as a bound for subsequent phases. The solver also stores hints from the previous phase, improving continuity and practical runtime behavior.
+
+Solver logs are persisted per phase and included in run artifacts, enabling post-hoc audit.
+
+#heading(level: 3, numbering: none, outlined: false)[Output artifacts]
+
+Each solve run writes a timestamped result directory containing:
+
+- `output.yaml` with schedule payload,
+- phase log files,
+- status and structured statistics.
+
+This design makes experiments reproducible and supports external analysis scripts.
+
+== Verification Checks and Validation Implementation
+
+The implemented validation module computes verification outputs from both configuration and solution data. It reports:
+
+- hard conflict list and count;
+- unmet required meeting counts;
+- lecture-tutorial adjacency and same-day coherence checks;
+- order violations (lab before tutorial, tutorial before lecture, etc.);
+- room overflow and room oversize checks;
+- workload checks (groups, instructors, weekdays, late slots, Saturdays);
+- instructor preference checks (scheduled in preferred vs non-preferred slots);
+- dual-role conflict checks (teaching vs own student attendance overlaps);
+- room usage checks (time utilization, capacity utilization, room swaps);
+- room-feature compatibility checks (capacity plus required equipment/layout constraints);
+- support for external booking consistency checks from Outlook provider data (including room-booking conflicts and large-event room occupancy windows), with conflict-resolution actions on concrete dates/weeks.
+
+This validation layer is used both as a debugging instrument and as an acceptance dashboard for schedulers.
+
+In operational workflow, Outlook is treated as booking/conflict provider and synchronization endpoint, not as an internal optimization source model. The assistant supports one-click booking synchronization for approved timetable events (with instructor identity in booking payload), which reduces manual communication failures.
+
+Operational governance is supported in the workflow layer: changes can be routed through curator-owned streams, and booking actions can include delegated-flow steps for rooms with restricted booking permissions.
+
+== Booking Integration Implementation
+
+Booking integration is implemented as a separate workflow component connected to the scheduling assistant. It consumes room-booking provider data for conflict checks and writes synchronized reservations for approved timetable events.
+
+The implementation supports:
+
+- provider-side room occupancy lookup for conflict verification;
+- one-click booking synchronization from timetable updates;
+- instructor identity in booking metadata for operational communication;
+- delegated booking handoff for restricted rooms;
+- post-sync consistency checks to ensure timetable and bookings remain aligned.
+
+The room-booking service and APIs are already available in the university ecosystem and are used as integration target for this feature.
+
+== Interactive Assistant Frontend Implementation
+
+#heading(level: 3, numbering: none, outlined: false)[Main workspace structure]
+
+The web UI implements three user-visible workspaces:
+
+- timetable,
+- settings,
+- checks.
+
+Settings and timetable workspaces are fully implemented and integrated with configuration/schedule state.
+
+#heading(level: 3, numbering: none, outlined: false)[Settings workspace]
+
+The settings module provides dedicated tabs for:
+
+- courses,
+- programs and student groups,
+- instructors,
+- rooms,
+- semester/global settings.
+
+It includes:
+
+- consistency-aware selection state,
+- keyboard-friendly clearing/navigation behavior,
+- sidebar context panel,
+- config and output loading flow.
+
+Design justification in operational terms:
+
+- hierarchical programs/groups editor reduces ambiguity in audience definition;
+- dedicated component editor makes course constraints explicit and auditable;
+- sidebar context panel reduces cross-screen lookup during edits;
+- stable tab separation reduces accidental mixing of unrelated configuration concerns.
 
 #figure(
-  caption: [Text throughput benchmark],
-  table(
-    columns: 2,
-    table.header(
-      [Terminal], [Time (seconds)],
-    ),
-    [Alacritty], [1.67],
-    [Hybrid Alacritty], [1.25],
-    [Saiga], [2.38],
-    [Saiga (partial redraw)], [2.78],
-    [Wezterm], [3.4],
-  )
+  image("../../figures/schedule-assistant-settings-general.png", width: 100%),
+  caption: [General settings interface used to define term slot grid, active weekdays, and scheduling horizon.]
 )
 
-Alacritty, utilizing Saiga’s VT parser, completes the task in 1.25 seconds - 25% faster than its original implementation with 1.67 seconds. Reverting Alacritty to byte-by-byte parsing degrades performance to 1.75 seconds - 4.8% worse than original - proving, that parsing inefficiency propagates downstream regardless of the rendering backend.
+#figure(
+  image("../../figures/schedule-assistant-settings-groups.png", width: 100%),
+  caption: [Programs/groups editor supporting hierarchical audience definition and selector-based modeling.]
+)
 
-Saiga’a implementation with WebGPU reveals its limitation. Despite sharing the same code, expect for the frontend, as the hybrid Alacritty variant, Saiga requires 2.38 seconds - 90% slower, due to WebGPU’s surface-copy overhead as described above. Wezterm’s performance further illustrates this, resulting 3.4 seconds runtime with its byte-by-byte parser and WebGPU frontend.
+#figure(
+  image("../../figures/schedule-assistant-settings-courses.png", width: 100%),
+  caption: [Courses/components editor used to encode per-week requirements, shared/per-group meetings, and component relations.]
+)
 
-== Summary
+#figure(
+  image("../../figures/schedule-assistant-settings-rooms.png", width: 100%),
+  caption: [Room settings editor used to maintain capacity and room-constraint metadata for feasibility checks.]
+)
 
-This study mostly focuses on CPU-bound parsing and GPU rendering. Real-world terminal performance also depends on GPU drivers, I/O scheduling, and shell integration—factors beyond this paper's scope.
+#heading(level: 3, numbering: none, outlined: false)[Timetable workspace]
 
-Our approach of parsing text in variable-length batches and using SIMD instructions for UTF-8 validation proves itself effective for handling small, medium and large volumes of data. In benchmarks, such as `unicode` or `missing_glyphs`, our proposed implementation outperforms other state-of-the-art parsers by 2-3x, showing that modern hardware, when used properly, can drastically improve processing speed. However, it is important that the rendering system is able to keep up with it.
+The timetable workspace implements:
 
-Alacritty demonstrates this balance well. By integrating Saiga's efficient VT parser with Alacritty's code, which uses OpenGL for rendering, it achieves the best overall performance among other variations tested in our research. For example, hybrid Alacritty implementation achieves a 18% better application FPS as shown by the DOOM-fire benchmark compared to the baseline Alacritty implementation.
+- weekly navigation over computed date ranges,
+- core/English/group-centric and resource-centric (room/instructor) views,
+- merged-card rendering for repeated meetings in one cell,
+- visual connectors for pedagogically related back-to-back sessions,
+- dynamic highlighting for selected meetings, groups, programs, rooms, and instructors,
+- a computed detail panel with contextual statistics and drill-down links.
 
-WebGPU, used by Saiga and Wezterm, introduces challenges when targeting terminal-specific optimizations. While it offers cross platform compatibility and great performance by compiling its own shading language, WGSL, into native graphics API for each of the supported OS, its security rules force full-screen redraws for every update, creating bottleneck in our specific use-case. Saiga's parser is able to process text quickly; however WebGPU's overhead limits visible performance, resulting 38 FPS for the OS window in the DOOM-fire benchmark. Wezterm shows similar performance with 36 FPS, despite using much slower VT parser implementation, suggesting that rendering to the screen with WebGPU might be the bottleneck in this case.
+Design justification in operational terms:
 
-While WebGPU limits Saiga’s rendering performance, its cross-platform benefits (Metal/Vulkan/DX12 support) make it viable for non-latency-sensitive applications. Future work should explore Vulkan/Metal-native rendering for Saiga while retaining WebGPU for cross-platform fallback.
+- room/instructor-centric views support targeted conflict investigation;
+- merged-card rendering improves readability in dense timetable cells;
+- contextual detail panel reduces manual reconstruction of local constraints;
+- highlight and connectors support fast inspection of related sessions.
+
+#figure(
+  image("../../figures/schedule-assistant-timetable.png", width: 100%),
+  caption: [Timetable workspace used for conflict inspection, view switching, and contextual diagnostics in weekly maintenance workflow.]
+)
+
+The view model computes normalized meetings, columns, room/group utilization labels, and per-cell signatures to keep rendering stable and responsive for large schedules.
+
+== Operational Workflow Implementation
+
+The implemented end-to-end workflow is:
+
+1. edit configuration in settings (artifact: validated config snapshot);
+2. run solve via backend-worker orchestration (artifact: solve task and phase logs);
+3. inspect generated schedule in timetable workspace (artifact: schedule draft);
+4. run checks and review diagnostics (artifact: checks report);
+5. apply user adjustments and rerun if needed (artifact: revised schedule draft);
+6. synchronize approved events to booking provider (artifact: booking updates + sync status);
+7. approve operational schedule version for use.
+
+User intervention is possible after configuration edits, after first draft inspection, and after checks review.
+
+In practice, this loop also handles late updates: when curriculum plans, instructor windows, or elective assignments change, users manually adjust affected parts of the calendar with checks support and optional solver-assisted suggestions.
+
+This loop supports both initial schedule generation and iterative maintenance after disturbances.
+
+== Implementation of Acceptance Criteria
+
+The implemented system evaluates generated schedules using explicit criteria:
+
+- *feasibility criteria*: zero hard conflicts and zero unmet required meetings;
+- *pedagogical criteria*: number of ordering violations and continuity coverage statistics;
+- *operational criteria*: room-capacity overflow count, room-usage and overload indicators (late slots, Saturdays, weekday concentration);
+- *maintenance criteria*: controlled change scope relative to accepted baseline schedule, supported by diagnostics and optional solver suggestions;
+- *runtime criteria*: solve time and diagnostics completeness for representative scenarios;
+- *usability criteria*: direct manipulation and transparent diagnostics in UI.
+
+The criteria are auditable from run artifacts and verification outputs, which makes schedule quality discussion with planners evidence-based rather than subjective.
+
+== Practical Outcome
+
+The practical outcome can be stated as a concrete before/after transformation.
+
+- *Before implementation:* scheduling relied on Google Sheets, ad hoc scripts, and manual Outlook conflict checks.
+- *After implementation:* one integrated assistant combines a structured CB-CTT model, optimization, validation checks, and booking-aware workflow.
+
+Newly enabled capabilities:
+
+- reproducible validation reports and structured run artifacts;
+- integrated diagnostics for conflicts and quality issues;
+- calendar-aware maintenance with user-controlled edits and solver-assisted local repair;
+- one-click booking synchronization for approved updates.
+
+Out of scope at current stage:
+
+- sports scheduling;
+- full SIS integration across all educational processes;
+- fully automated end-user notification pipeline.
+
+== Implementation Limitations
+
+The implemented system has practical boundaries that should be considered in deployment:
+
+- weekly reference solve abstracts some date-specific availability to adaptation stage;
+- room-feature inventories can be incomplete or outdated, affecting strict feature feasibility;
+- booking flows depend on external provider availability and permissions;
+- current data model and workflows are tailored to Innopolis operational context;
+- selected governance processes remain curator/operator-mediated rather than fully automated;
+- full SIS-level integration and fully automatic stakeholder notifications are out of scope, yet the system is designed to be easily extensible for future integrations.
+
+== Chapter Summary
+
+This chapter presented the concrete engineering implementation of the proposed assistant across the data pipeline, optimization engine, verification subsystem, and interactive web UI. The implemented system supports Curriculum-Based Course Timetabling (CB-CTT) modeling, conflict-safe optimization, transparent validation checks, and practical human-in-the-loop editing. Together, these components realize the design objective of reliable timetable maintenance under real educational constraints.

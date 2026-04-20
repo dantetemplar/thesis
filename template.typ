@@ -7,15 +7,35 @@
     region: "ru",
     top-edge: 0.7em,
     bottom-edge: -0.3em,
-    font:  "Tempora LGC Uni",
+    font: "Liberation Serif",
   )
   set par(
-    leading: 0.75em,
+    leading: 0.7em,
     justify: true,
     first-line-indent: (
-      amount: 1.25cm,
-      all: true,
+      amount: 0.8cm,
     ),
+  )
+  set list(
+    marker: [•],
+    indent: 1.1em,
+    body-indent: 0.55em,
+    spacing: 0.55em,
+  )
+  show list: it => {
+    set par(
+      leading: 0.48em,
+      first-line-indent: (
+        amount: 0cm,
+        all: false,
+      ),
+    )
+    it
+  }
+  set enum(
+    indent: 1.1em,
+    body-indent: 0.55em,
+    spacing: 0.55em,
   )
   set page(
     "a4",
@@ -33,16 +53,23 @@
         ),
       )
 
-      let headings = query(
-        selector(heading)
-        .before(here())
-      )
+      let headings-before = query(selector(heading.where(level: 2)).before(here()))
 
-      if headings.len() == 0 {
+      let headings-on-page-top = query(selector(heading.where(level: 2)))
+        .filter(h =>
+          here().page() == h.location().page() and
+          h.location().position().y < 5cm
+        )
+
+      if headings-before.len() == 0 and headings-on-page-top.len() == 0 {
         return
       }
 
-      let current = headings.last()
+      let current = if headings-on-page-top.len() > 0 {
+        headings-on-page-top.first()
+      } else {
+        headings-before.last()
+      }
 
       if counter(heading).get() == (0,) {
         return
@@ -56,7 +83,12 @@
       }
 
       
-      strong(counter(heading).display() + " " + current.body)
+      let current-number = counter(heading)
+        .at(current.location())
+        .map(str)
+        .join(".")
+
+      strong(current-number + " " + current.body)
       h(1fr)
       strong[#counter(page).display("1")]
 

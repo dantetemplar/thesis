@@ -1,143 +1,364 @@
-= Design and Methodology
+= Design
 
-== Research Design
+This chapter presents the design of an interactive assistant for timetable editing and optimization in educational institutions. The design decisions are grounded in two practical observations from the Innopolis University scheduling workflow: (1) timetables are continuously edited after publication, and (2) schedulers need both algorithmic support and high-control manual editing. Therefore, the proposed system is designed as a human-in-the-loop platform that integrates optimization, validation, and interactive editing within one workflow.
 
-To implement the performance optimizations outlined in the previous chapter, this research adopts an iterative development approach to design, develop and optimize a hardware accelerated terminal emulator. The development and research are divided into three main phases:
+== Engineering Objectives and Design Principles
 
-1. *MVP:* Building an initial baseline emulator with basic functionality, focusing on correctness, rather than performance.
-2. *Optimizations incorporation:* Introducing hardware-acceleration on top of existing code, such as SIMD-based text processing and advanced GPU rendering.
-3. *Performance assessment:* Conducting benchmarks of the final implementation against existing emulators, using real-world data targeting specific metrics.
+The system design follows four engineering principles derived from the problem analysis in Chapters 1 and 2. Each principle is linked to a concrete implementation mechanism.
 
-This iterative approach ensures that implementation evolves through continuous testing and refinement, addressing potential bottlenecks at each stage.
+*First, feasibility-first optimization.* Hard constraints (no overlaps, admissible room capacities, required number of meetings) are always prioritized over preference optimization. In implementation, this is enforced via hard constraints and phase ordering in the optimizer @Ceschia_2023 @Schaerf1999.
 
-== System Requirements
+*Second, perturbation-aware editing.* The workflow treats timetable maintenance as a recurring adaptation task rather than one-off timetable generation @veenstra2016. In implementation, this is realized in Stage B as user-driven editing with optional solver assistance for local adjustments.
 
-=== Hardware
+*Third, explicit validation transparency.* The system includes clear, user-visible checks for conflicts, constraints, and workload balance, so schedulers can verify correctness before publication. In implementation, this is realized via a dedicated checks workspace and diagnostics outputs @oude-vrielink2019.
 
-The following are the hardware requirements for running the final implementation. It includes specific GPUs set with CPU recommendation.
+*Fourth, workflow-native integration.* The architecture is compatible with existing institutional tools (Google Sheets, web-based internal systems, calendar-based room usage practices), minimizing process friction. In implementation, this is realized through parser-based migration and Outlook-linked booking checks/synchronization.
 
-- *CPU*: SIMD-capable CPU is required to take advantage of hardware accelerated text-processing algorithms for UTF-8 validation and ANSI parsing. However, serial fallback implementations exist. Therefore this is optional, but a recommended configuration, since majority of optimizations listed in this research are SIMD-based.
-- *GPU*: GPU compatible with any of the following graphics API: Vulkan, Metal, D3D12, OpenGL. This API set is based on WGPU's translating capabilities of WGSL shading language.
+== Problem Formalization
 
-=== Software
+Before introducing the formal model, we summarize the scheduling logic used at Innopolis University, because this logic directly defines model entities and constraints.
 
-The following is the software configuration that was used for designing and developing proposed terminal emulator. It includes programming language choice and required libraries for interacting with hardware capabilities along with operating system.
+#heading(level: 3, numbering: none, outlined: false)[Institutional Scheduling Context]
 
-- *Programming language:* Rust was chosen due to its raw performance and memory safety guarantees. Moreover, this language has rich infrastructure around it, providing all the required libraries for this research. This eliminates the need to resort to C-based libraries through the foreign function interface (FFI), which introduces additional performance and development overhead.
-- *Libraries:*
-	- *WGPU* #footnote("https://github.com/gfx-rs/wgpu") for WebGPU implementation. This is a state-of-the-art WebGPU implementation in pure Rust, used in Firefox web-browser and Deno JavaScript runtime.
-	- *Portable SIMD* #footnote("https://github.com/rust-lang/portable-simd") library for cross-platform abstractions over SIMD intrinsics for the Rust programming language. It is important to note that while this project is work-in-progress, basic functionality (including support for ARM NEON and x86 AVX targets) required for this research is implemented. Moreover, once stabilized, it will become a part of standard library, making it an optimal choice for SIMD programming with Rust.
-	- *simdutf8* #footnote("https://github.com/rusticstuff/simdutf8"): UTF-8 validation for Rust using SIMD extensions. This library is based _simdjson_ which itself is based on @on-demand-json @validating-utf8-in-less-than-one-instruction-per-byte-2010 @parsing-gigabytes-of-json-per-second
-- *Platform:* macOS, with cross-platform testing on Linux. While Windows is not a first priority, adding support for it remains possible without extensive modifications to the code, since chosen libraries provide access to hardware capabilities in a cross-platform style. The only major difference between these systems is accessing PTY.
+At Innopolis University, the academic year is split into Fall, Spring, and Summer trimesters. Fall and Spring are additionally split into two teaching blocks, while Summer is a single block. Scheduling is performed on discrete teaching days and 90-minute slots.
 
-These configurations were chosen to balance portability, ease of development and access to hardware capabilities.
+Innopolis University is relatively small (around 2,000 students). This matters for external validity: many universities are an order of magnitude larger and operationally more complex, with multi-campus layouts, multiple departments/faculties, and broader governance layers. The workflow described here is designed for this institutional scale, while remaining extensible for larger deployments.
 
-== Implementation Details
+The university has both bachelor and master programs, including English-taught and Russian-taught tracks. For bachelor students, years 1-3 are course-based and year 4 is thesis-only (no regular taught timetable). For master students, year 2 is also thesis-focused and does not require regular timetable generation.
 
-Terminal emulator anatomy typically includes the following parts:
+Students are organized into academic groups (for example, `B22-CBS-02`), where cohort, track, and group index are encoded in the group ID. However, groups are not fully disjoint:
 
-- ANSI & DEC VT escape sequences parser (commonly referred as VT parser). This part is responsible for separating and interpreting arbitrary set of bytes as either special commands (escaped by special sequences, thus the name) @ecma-48 or plain text. Modern VT parsers typically support only UTF-8 encoded text. Input bytes come from some sort of teletype device, possibly emulated. On Linux and macOS it is called PTY (pseudotty) and ConPTY on Windows.
-- Cell grid formed by executing parsed commands. These commands include cursor movement, clearing the screen, clipboard manipulation, outputting colors, bidirectional communication with the host application, etc. These commands are not strongly documented and may slightly differ from one implementation to another. As a general rule, modern terminals should be backwards compatible with xTERM @xterm implementation. The grid itself represents an internal grid of blocks and characters shaped by the backend. It should hold information about each individual cell, such as color, glyph and its attributes.
-- Frontend is the final part in the terminal emulator and it is responsible for the graphical representation of the cell grid described above.
+- first-year English classes use separate level groups;
+- some students attend classes from another year (retakes);
+- early bachelor years share many courses across tracks, while later years become track-specific.
 
-We briefly describe implemented optimizations before covering them in detail in subsequent sections.
+Core courses usually follow a lecture-tutorial-lab pattern:
 
-Typical terminal emulator parsers are implemented using finite state automata, processing one byte at a time. Our implementation adopts a different strategy, using batch processing over variable slices of bytes (see @ansi-parser-pseudocode). This strategy enables us to reduce control flow branching and optimize UTF-8 validation by using SIMD-based algorithm @validating-utf8-in-less-than-one-instruction-per-byte-2010.
-
-Frontend was based on WebGPU API implemented with WGPU, enabling cross-platform compatibility with native graphics API. Two rendering approaches were compared: partial redraw (updating only modified cells) and full-screen redraw. In our benchmarks, full-screen redraw consistently outperformed partial redraw, owing to WebGPU's requirement for complete surface updates.
-
-Optimizing cell grid was out of the scope for this research. Cell grid implementation was taken from the Alacritty terminal and adapted for our prototype under Apache-2.0 & MIT licenses.
-
-=== Text Processing
-
-For optimized text-processing functionalities, the emulator incorporates several state-of-the-art algorithms and techniques to achieve exceptional performance. Work by #cite(<vt-parser>, form: "prose") served as a foundation for building correct and fast ANSI parser. It was modified to incorporate several SIMD-based optimizations targeting UTF-8 parsing and validation. 
-
-The first difference is in batch processing parser inputs as arrays, rather than performing byte-by-byte parsing. This change opens possibilities for vectorizing several operations. One of these operations is separating UTF-8 text from escape sequences, making it easier to apply specific optimizations for each input kind.
-
-This process can be depicted as the following pseudocode (@ansi-parser-pseudocode):
-
-#pagebreak()
+- lecture and tutorial are often delivered to a full audience;
+- labs are usually scheduled per group and commonly taught by teaching assistants;
+- in real data, exceptions are frequent (missing components, co-teaching teams, multiple meetings per week, split audiences, mixed-track audiences).
 
 #figure(
-  caption: [Detailed pseudocode for the ANSI parser’s entry point, illustrating how the parser identifies multibyte escape sequences using SIMD, validates UTF-8 in bulk, and dispatches ASCII and control-sequence data.],
-  kind: "figure",
-```
-Procedure Advance(Parser, Performer, Bytes[])
-    i ← 0
-    While i < length(Bytes) do
-        If Parser.nextStep = Ground then
-            i ← i + AdvanceGround(Parser, Performer, Bytes[i…])
-        Else If Parser.nextStep = PartialUtf8 then
-            i ← i + AdvancePartialUtf8(Parser, Performer, Bytes[i…])
-        Else
-            ChangeState(Parser, Performer, Bytes[i])
-            i ← i + 1
-        End If
-    End While
-    Return i
-End Procedure
+  image("../../figures/core-courses-timetable-spreadsheet.png", width: 100%),
+  caption: [View of the core-courses spreadsheet.]
+)
+
+#figure(
+  image("../../figures/core-courses-timetable-spreadsheet-large-view.png", width: 100%),
+  caption: [Large-view of the core-courses spreadsheet.]
+)
+
+English in year 1 follows a separate model. Students are assigned by language level, not by academic group, into stable English groups:
+
+- `AWA` groups (`AWA 1` ... `AWA 5`);
+- `EAP` groups (`EAP 1` ... `EAP 11`);
+- `FL` groups (`FL1` ... `FL6`).
+
+Each English group has two `class` meetings per week with a stable instructor. Group size is typically around 15 students.
+
+Electives follow separate institutional rules:
+
+- assignment is based on top-5 student choices, with one final assignment per elective bucket;
+- elective buckets occur in specific periods (Tech+Hum in Summer year 1, Tech+Hum in Summer year 2, Tech in Fall year 3);
+- after assignment, elective structure is fully determined by the lecturer (format, grouping, meeting pattern);
+- for planning and bureaucracy, the strict requirement is to satisfy the required number of academic hours.
+
+Sports sections are treated as a separate process: students must accumulate 30 academic hours, but sports section scheduling is managed externally and is out of scope for this assistant.
+
+The university uses one main campus building with rooms of different capacities (lecture halls, seminar rooms, labs). Online delivery is also possible and does not consume physical room resources. Teaching staff includes professors and teaching assistants; instructor availability and instructor preferences are operationally important, especially because some teaching assistants are also students.
+
+Large external events regularly create temporary room blackouts. A concrete case is the IT conference Merge 2026: on 17-18 April, large lecture halls 105, 106, 107, and 108 were occupied by conference tracks for the full working day, which overlapped regular teaching windows.
+
+When an instructor is also enrolled as a student, the timetable must prevent role-conflicts: the same person cannot be assigned to teach and attend another class at overlapping times.
+
+Time overlap checks are interval-based, not only slot-label-based. This is important because different programs may use different slot grids (for example, bachelors 12:10-13:40 and masters 12:40-14:10), so partial overlaps must be detected even when slot names differ. A unified slot grid can be used by default, but interval checks remain mandatory.
+
+Governance constraints also affect scheduling operations. Some programs are coordinated through curators, and schedule changes are routed through them rather than direct instructor-level negotiation. For selected tracks (for example, some Russian-language bachelor streams), room changes can be restricted because of fixed recording setup requirements.
+
+Room assignment is constrained not only by capacity but also by room features (for example, amphitheater layout, board/screen type, specialized equipment). These constraints are operationally critical even when room inventories are incomplete or periodically outdated.
+
+Some rooms require delegated booking rights (for example, cyberpolygon spaces), so booking operations may involve handoff to another responsible person.
+
+Data readiness is another operational factor: curriculum plans, teaching loads, and elective lists can arrive late or change without timely notification, creating synchronization risk between planning artifacts and the actual schedule state.
+
+Block-level operations also require explicit support: each semester is split into two teaching blocks, and block transitions often cause confusion for students and instructors if schedule changes are not clearly surfaced. Some instructors also teach in "waves" (present only in specific weeks), which creates additional date-window constraints in Stage B.
+
+In operational planning, besides feasibility, the schedule is expected to avoid overloaded days and uncomfortable placement. Typical targets are:
+
+- around 2-3 distinct subjects per group per day;
+- no more than 4 meetings per day where possible (for both student groups and instructors);
+- minimized Saturday and late-evening classes;
+- lecture/tutorial placement preferably in morning or afternoon slots;
+- for loaded undergraduate years (especially years 1-2), lecture-tutorial-lab chains are preferably placed on the same day.
+
+This institutional structure explains why the model must support mixed audiences, per-group sessions, stable subgroup teaching (English), lecturer-defined elective structures, co-teaching, selector-based group expansion, and checks for cross-group student conflicts.
+
+#heading(level: 3, numbering: none, outlined: false)[Room Booking Operations]
+
+Microsoft Outlook is used as the institutional room-booking provider. In this workflow, Outlook is used to detect room-booking conflicts and synchronize approved timetable bookings. The assistant also supports one-click booking updates for timetable events, including instructor identity in booking metadata, so operational notifications stay aligned.
+
+The practical process is strongly communication-dependent: some instructors primarily rely on Outlook notifications, others on messenger communication. Therefore, booking metadata must explicitly include instructor identity, and booking synchronization must remain up to date after each timetable change.
+
+#figure(
+  image("../../figures/outlook-calendar-view.png", width: 100%),
+  caption: [Outlook timetable calendar view.]
+)
+
+#figure(
+  image("../../figures/outlook-room-calendars.png", width: 100%),
+  caption: [Outlook room calendars used for finding free rooms for timetable.]
+)
+
+#figure(
+  image("../../figures/outlook-event-details.png", width: 100%),
+  caption: [Outlook event details.]
+)
+
+#figure(
+  image("../../figures/outlook-event-details-choose-room.png", width: 100%),
+  caption: [Outlook event details, selecting the target room.]
+)
+
+#figure(
+  image("../../figures/outlook-event-details-choose-calendar.png", width: 100%),
+  caption: [Outlook event details, selecting the target calendar.]
+)
 
 
-Procedure AdvanceGround(Parser, Performer, Slice[])
-	  ▷ vectorized memchr for 0x1B
-    pos ← SIMD_Find(Slice, ESC)
-    If pos = 0 then
-        Parser.nextStep ← ChangeState
-        Parser.state ← Escape
-        Return 1
-    End If
+#heading(level: 3, numbering: none, outlined: false)[Formal Model]
 
-    prefix ← Slice[0…pos-1]
-    If isASCII(prefix) then
-        DispatchASCII(Performer, prefix)
-    Else
-		    ▷ vectorized UTF-8 decode + dispatch in bulk
-        SIMD_UTF8DecodeAndDispatch(Performer, prefix)
-    End If
+The scheduling problem is modeled on a finite planning horizon (semester or block) with discrete teaching dates and discrete intra-day slots. Let:
 
-    If pos < length(Slice) then
-        Parser.nextStep ← ChangeState
-        Parser.state ← Escape
-        Return pos + 1
-    Else
-        Return pos
-    End If
-End Procedure
-```
-) <ansi-parser-pseudocode>
+- $G$ be the set of student groups (academic, English, elective, and cross-cutting groups).
+- $C$ be the set of courses.
+- $K_c$ be the set of components for course $c$ (e.g., lecture, tutorial, lab, class).
+- $R$ be the set of rooms with capacity function `cap(r)`.
+- $I$ be the set of instructors.
+- $D$ be teaching dates in the term.
+- $T$ be available intra-day slots.
 
-Note, that `ESC` in the `SIMD_Find` call is the name for the "single byte command" with byte value of `0x1B`. Mutli-byte escape sequences always start with this byte, hence the name `ESC`, while others commands are single-byte and can be parsed as a valid UTF-8 and dispatched later. Therefore, it is possible to separate regular text from special multibyte sequences using SIMD.
+Each concrete meeting instance $m$ is generated from a course component and contains:
 
-While logic for parsing escape sequences remains unchanged, UTF-8 is considered a special case. In addition to separating it from the control sequences, it requires validation, since it may not always be a valid UTF-8, in which case replacement character "�" should be shown on the screen. This is done on behalf of the SIMD accelerated UTF-8 validation library based on the works @on-demand-json @validating-utf8-in-less-than-one-instruction-per-byte-2010 @parsing-gigabytes-of-json-per-second.
+- target audience (one group or union of groups),
+- expected attendance,
+- candidate instructor options (including co-teaching sets),
+- one weekly recurrence index inside the term.
 
-=== Rendering
+Examples of meeting generation used in the implementation:
 
-For displaying terminal grid on the screen several optimization techniques were used.
+- `Calculus / lec`: one shared meeting for all selected groups;
+- `Calculus / lab`: one meeting per group when `per_group = true`;
+- `English / class`: meetings by English-level groups, not by academic groups;
+- selector-based audiences such as `@BS_Y1_EN` (whole program) or `@MS_Y1/AIDE` (single track).
 
-- *Batch rendering:* The emulator supports synchronized updates mechanism which allows deferring rendering intermediate states by batching commands and rendering the final state in a single GPU pass. This approach reduces unnecessary draw calls.
-- *Partial redraw:* Terminal tracks modified regions between updates and renders those regions exclusively. This optimization minimizes GPU workload during partial screen updates (e.g. cursor movements). However, our benchmarks shown, that when using WebGPU such approach does not introduce rendering speedups, since WebGPU does not provide an API to access current screen surface, therefore implementing it requires holding custom surface and copying data from it to the active one on each render pass.
-- *Native graphics API:* WebGPU shader translating capabilities enables utilization of native graphics API for each platform. This approach allowed maximizing GPU performance while maintaining portability. For example, when targeting macOS, WGSL shaders will be translated into Metal.
+#heading(level: 3, numbering: none, outlined: false)[Stage A: Reference Weekly Structure]
 
-#pagebreak()
+The decision model uses binary assignment variables. For each meeting $m$, day-slot pair $(d,t)$, room $r$, and instructor option $i$:
 
-== Experimental Setup
+- $x_(m,d,t,r,i) \in {0,1}$ equals 1 iff meeting $m$ is assigned to $(d,t,r,i)$.
 
-=== Benchmarks
+Core assignment condition:
 
-Performance testing involves two kinds of benchmarking workloads:
+- each meeting is assigned exactly once over admissible alternatives.
 
-- *Synthetic:* simulated large outputs, including continuous scrolling and rapid updates, to stress test the implementation
-- *Real-world:* Source code files, shell interactions, viewing logs, input latency
+Hard constraints in Stage A:
 
-=== Testing environment
+- no time overlap for the same room;
+- no time overlap for the same instructor;
+- no time overlap for the same student group;
+- no time overlap for students appearing in multiple groups;
+- no overlap between teaching assignments and student attendance for people with dual role (instructor + student);
+- meeting counts satisfy the curriculum-implied weekly requirements;
+- room assignment meets required attendance threshold.
 
-Several metrics contribute to making a terminal emulator "fast". The most important metrics to consider are:
+Representative constraints:
 
-- *Text throughput:* how much data the terminal can process and show on screen per specific time window. For example, outputting contents of a large file.
-- *Rendering latency:* number of frames rendered to the screen per second (FPS). 
+- no-overlap for each room/instructor/group is enforced as interval incompatibility over selected assignments;
+- room capacity feasibility is enforced on each selected $(m,r)$ assignment.
 
-Additionally, CPU and GPU memory utilization are considered. While these metrics do not directly affect terminal speed, it is important to keep them in mind, so that our implementation will not require unneeded resources.
+Soft constraints (optimize when feasible):
 
-== Evaluation and Analysis
+- preserve pedagogical ordering (lecture before tutorial, tutorial before lab, etc.);
+- maximize back-to-back lecture-tutorial continuity for shared audience;
+- prefer same-day coupling for related components when applicable;
+- penalize Saturday and late-evening classes;
+- penalize room oversizing and unnecessary room changes;
+- balance distribution of meetings across weekdays.
+- prefer assignments that match instructor time preferences, with role-based priority weights (for example, professor preferences can be weighted higher than teaching assistant preferences).
 
-The evaluation criteria are based on performance gains. It includes comparing the prototype's text processing speed and rendering efficiency against baseline implementation and state-of-the-art terminal emulators (see @competitive-terminals).
+#heading(level: 3, numbering: none, outlined: false)[Stage B: Calendar-Level Adaptation (User-Driven)]
+
+Stage B starts from an accepted baseline weekly structure and instantiates it on concrete calendar dates.
+
+Perturbation is treated relative to an accepted baseline calendar. In practical terms, adaptation quality reflects how much the updated schedule deviates from the accepted one in date, slot, room, and instructor assignments.
+
+At this stage, the exact perturbation metric is intentionally left as an open engineering question. The intended direction is to avoid unnecessary structural changes while preserving feasibility and operational predictability for students, instructors, and planners.
+
+In Stage B, planners manually decide concrete moves (which class to move and where), while the system provides diagnostics and can run solver-assisted suggestions for local repair when requested. Date-specific operational constraints, including instructor unavailability and room blackouts from external bookings/events, are enforced during this process.
+
+The overall objective is lexicographic across stages:
+
+- first, satisfy feasibility (hard constraints);
+- then, maximize pedagogical coherence and comfort in Stage A;
+- then, support low-perturbation user-guided adaptation in Stage B.
+
+== Domain Data Model
+
+The domain model is implemented as typed configuration entities with explicit validation rules. The central configuration includes:
+
+- *Term configuration*: semester date range, active weekdays, slot start times.
+- *Room configuration*: room identifiers and capacities.
+- *Instructor configuration*: instructor identity and role metadata.
+- *Instructor preferences*: preferred time windows used in solving and verification, including preference-priority by role.
+- *Program hierarchy*: degree/year/language structures and track-level groups.
+- *Student groups*: group code, kind, estimated size, optional explicit student membership.
+- *Course configuration*: course tags and component-level teaching requirements.
+
+The course component model supports patterns that are typical for real university timetabling and often difficult to express in legacy tools:
+
+- per-group or shared-audience components,
+- selectors over program/track structure (e.g., all groups in a track),
+- co-teaching alternatives,
+- explicit per-week frequencies,
+- relations to other components for ordering and coupling preferences.
+
+This representation allows one model to cover common course structures (lecture+tutorial+lab), English stream classes, and mixed audience cases.
+
+== System Architecture
+
+The system uses a three-part architecture: frontend, backend orchestration, and optimizer workers.
+
+#figure(
+  align(center)[
+    #image("../../figures/system-architecture-sequence.svg", width: 100%)
+  ],
+  caption: [Swimlane diagram of architecture.]
+)
+
+
+
+#heading(level: 3, numbering: none, outlined: false)[Frontend]
+
+The frontend is a web application that provides:
+
+- configuration workspace (courses, groups/programs, instructors, rooms, term settings),
+- timetable workspace with weekly navigation and multiple views,
+- conflict-aware visual details for selected entities (group, program, meeting, room, instructor),
+- validation and consistency feedback while editing configuration.
+
+Interface responsibility: the frontend sends configuration updates and solve/cancel commands over REST APIs, and consumes task/status/log updates provided by backend streams.
+
+The UI is intentionally built around direct manipulation and reversible actions to align with scheduler expectations @Shneiderman1983 @Norman2013.
+
+
+
+#heading(level: 3, numbering: none, outlined: false)[Backend]
+
+The backend is designed as a task and state orchestration service:
+
+- stores and updates configuration versions;
+- receives solve/edit requests from UI;
+- dispatches optimization tasks to worker nodes;
+- streams progress and logs back to UI;
+- persists generated schedule artifacts and derived checks.
+
+Interface responsibility: the backend exposes REST endpoints for frontend operations and worker task lifecycle management, including asynchronous task initialization and cancellation polling.
+
+This layer isolates the user workflow from solver runtime details and enables horizontal scaling of optimization workers.
+
+
+
+#heading(level: 3, numbering: none, outlined: false)[Optimizer workers]
+
+Optimizer workers run independently and connect to backend endpoints to:
+
+- receive solve/cancel tasks,
+- execute CP-SAT model solving,
+- report phase logs and statuses,
+- return schedule artifacts in machine-readable format.
+
+Interface responsibility: workers poll backend task endpoints for work/cancel signals and stream phase logs/status through a persistent channel (WebSocket) to backend, following a GitHub-worker style pull model.
+
+This worker model supports distributed execution and robust operational deployment, including multi-node setups.
+
+== Booking-Centric Design
+
+Room booking is treated as a dedicated capability in the system design, rather than a side effect of timetable generation.
+
+- Outlook provider data is used for room-conflict checks and blackout detection;
+- approved timetable changes are synchronized to booking system with one action;
+- booking payload includes instructor identity to satisfy communication requirements;
+- delegated booking flow is supported for rooms with restricted permissions;
+- booking consistency is validated after each adaptation cycle to keep timetable and room reservations aligned.
+
+== Two-Stage Timetabling Method
+
+The operational method is organized into two connected planning stages.
+
+*Stage A: Reference weekly structure.* A coherent weekly template is generated from the curriculum and resource constraints. This stage emphasizes pedagogical ordering, room suitability, and load distribution.
+
+*Stage B: Calendar-level realization.* The weekly structure is instantiated across actual dates in the active period. Date-specific disturbances (availability changes, exceptions, resource blocks) are handled through manual planner decisions, with solver assistance available on demand for local adjustments while preserving overall structure.
+
+This decomposition reflects actual university operations: planners reason in weekly patterns but execute on concrete calendar dates.
+
+== Multi-Objective Optimization Design
+
+The optimization process uses a hierarchical (lexicographic) objective strategy with sequential phases.
+
+- *Tier 1 (pedagogical coherence):* minimize ordering violations and missed lecture-to-tutorial continuity.
+- *Tier 2 (quality and comfort):* minimize calendar discomfort and resource inefficiencies (late classes, Saturday load, room oversizing, weekday imbalance).
+
+Each solved phase is fixed as a bound for the next phase. This prevents lower-priority objectives from degrading higher-priority educational structure.
+
+This design directly addresses a common practical issue: a single aggregated weighted objective may hide unacceptable violations behind a numerically improved but educationally weak schedule.
+
+== Validation and Quality Control Framework
+
+To make the design operationally auditable, the assistant provides a verification layer that can be launched before and after solving:
+
+- overlap checks (rooms, groups, instructors, and students) with interval-level intersection detection,
+- curriculum and constraint checks (required meetings, ordering relations, room capacity feasibility),
+- instructor checks (availability violations, dual-role conflict checks, and preference satisfaction reports with priority-aware summaries),
+- schedule consistency checks (same-day and back-to-back coherence for related classes),
+- workload and distribution checks (group load by weekday, instructor load, weekday concentration, late slots, Saturday load),
+- room usage checks (capacity overflow, oversize assignments, room utilization and room changes),
+- external booking checks via Outlook provider data (room-booking conflicts and conference-driven room blackouts).
+
+This framework supports both automatic checks and human review, enabling transparent acceptance decisions for produced timetables. In practice, trust is established not by tuning objective weights, but by passing these checks and giving planners clear diagnostics for each issue.
+
+== User-Centered Interaction Design
+
+The assistant is designed as a decision-support system rather than full automation:
+
+- users can inspect data assumptions and schedule structure;
+- users can switch views by group, room, and instructor;
+- users can investigate local conflicts before global re-solve;
+- users can iteratively adjust input and regenerate schedules.
+
+This interaction model follows the principle that schedulers retain responsibility and contextual knowledge, while optimization provides consistent computational support.
+
+== Transition from Legacy Workflow Impact
+
+The design intentionally absorbs lessons from earlier process stages:
+
+- highly irregular Google Sheets source structure;
+- custom parsing and conflict checking scripts;
+- spreadsheet plugin checks for room/time/teacher conflicts;
+- practical limitations of existing monolithic timetabling systems in usability and adaptation speed.
+
+#figure(
+  image("../../figures/core-courses-timetable-spreadsheet.png", width: 100%),
+  caption: [Legacy spreadsheet-based timetable source with heterogeneous structure that motivated formal modeling.]
+)
+
+The resulting design consolidates fragmented steps into one coherent platform with a formal model, integrated checks, and optimization-driven editing. The engineering trace from legacy artifacts to design choices is explicit:
+
+- legacy spreadsheets with heterogeneous semantics -> parser and normalization pipeline;
+- spreadsheet ambiguity and hidden conventions -> explicit typed data model;
+- manual conflict scanning -> verification module with explicit diagnostics;
+- manual booking lookup and reconciliation -> booking integration and consistency checks;
+- fragmented edits across tools -> integrated settings/timetable/checks workspaces.
+
+== Chapter Summary
+
+This chapter defined the engineering design of the proposed scheduling assistant. The problem was formalized as a constrained multi-objective optimization task with explicit hard/soft criteria and perturbation-aware adaptation. A Curriculum-Based Course Timetabling (CB-CTT) domain model, three-layer architecture with explicit interfaces, two-stage planning method, and transparent quality framework were established. These choices support practical timetable maintenance under continuous operational changes while preserving scheduler control.

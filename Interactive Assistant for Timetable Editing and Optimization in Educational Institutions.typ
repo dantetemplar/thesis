@@ -18,9 +18,9 @@
 
 #include "sections/chapters/1.typ"
 #include "sections/chapters/2.typ"
-// #include "sections/chapters/3.typ"
-// #include "sections/chapters/4.typ"
-// #include "sections/chapters/5.typ"
+#include "sections/chapters/3.typ"
+#include "sections/chapters/4.typ"
+#include "sections/chapters/5.typ"
 
 // Do the rest for other chapters:
 // #include "sections/chapters/n.typ"
