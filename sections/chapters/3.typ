@@ -24,12 +24,13 @@ At Innopolis University, the academic year is split into Fall, Spring, and Summe
 
 Innopolis University is relatively small (around 2,000 students). This matters for external validity: many universities are an order of magnitude larger and operationally more complex, with multi-campus layouts, multiple departments/faculties, and broader governance layers. The workflow described here is designed for this institutional scale, while remaining extensible for larger deployments.
 
-The university has both bachelor and master programs, including English-taught and Russian-taught tracks. Bachelor tracks include Software Development, Cybersecurity, Data Science, AI, Robotics, and Game Development; master programs (for example, SE, AIDE, and Robotics) follow separate curricula. For bachelor students, years 1-3 are course-based and year 4 is thesis-only (no regular taught timetable). For master students, year 2 is also thesis-focused and does not require regular timetable generation.
+The university has bachelor, master, and PhD programs, including English-taught and Russian-taught tracks. Bachelor tracks include Software Development, Cybersecurity, Data Science, AI, Robotics, and Game Development; master programs (for example, SE, AIDE, and Robotics) follow separate curricula. For bachelor students, years 1-3 are course-based and year 4 is thesis-only (no regular taught timetable). For master students, year 2 is also thesis-focused and does not require regular timetable generation.
 
 Students are organized into academic groups (for example, `B22-CBS-02`), where cohort, track, and group index are encoded in the group ID. However, groups are not fully disjoint:
 
 - first-year English classes use separate level groups;
 - some students attend classes from another year (retakes);
+- elective courses form additional cross-program groups that overlap regular academic groups;
 - bachelor years 1-2 share most courses across tracks, while year 3 and later are increasingly track-specific.
 
 Core courses usually follow a lecture-tutorial-lab pattern:
@@ -37,7 +38,7 @@ Core courses usually follow a lecture-tutorial-lab pattern:
 - lecture is typically one weekly meeting delivered to the full audience;
 - tutorial is typically one weekly meeting for the same full audience, often scheduled adjacent to lecture;
 - lab is typically one weekly meeting per academic group and commonly taught by teaching assistants;
-- in real data, exceptions are frequent (missing components, co-teaching sets, multiple lecture/tutorial meetings per week, split audiences, mixed-track and mixed-program audiences).
+- in real data, exceptions are frequent (missing components, co-teaching sets, multiple lecture/tutorial meetings per week, split audiences, mixed-track and mixed-program audiences, and temporary event-driven room blackouts).
 
 #figure(
   image("../../figures/core-courses-timetable-spreadsheet.png", width: 100%),
@@ -51,28 +52,31 @@ Core courses usually follow a lecture-tutorial-lab pattern:
 
 English in year 1 follows a separate model. Students are assigned by language level, not by academic group, into stable English groups:
 
-- `AWA` groups (`AWA 1` ... `AWA 5`);
-- `EAP` groups (`EAP 1` ... `EAP 11`);
-- `FL` groups (`FL1` ... `FL6`).
+- `AWA` groups (`AWA 1` ... `AWA 4` ... `AWA X`);
+- `EAP` groups (`EAP 1` ... `EAP 10` ... `EAP Y`);
+- `FL` groups (`FL 1` ... `FL 5` ... `FL Z`).
 
 Each English group has two `class` meetings per week with a stable instructor. Group size is typically around 15 students.
 
 Electives follow separate institutional rules:
 
-- assignment is based on top-5 student choices, with one final assignment per elective bucket;
-- elective buckets occur in specific periods (Tech+Hum in Summer year 1, Tech+Hum in Summer year 2, Tech in Fall year 3);
-- after assignment, elective structure is fully determined by the lecturer (format, grouping, meeting pattern);
-- for planning and bureaucracy, the strict requirement is to satisfy the required number of academic hours.
+- elective buckets are semester-specific and defined by the study plan (Summer Year 1: Tech + Hum, Summer Year 2: Tech + Hum, Fall Year 3: Tech), several elective pools run simultaneously. This is the main scheduling challenge for electives: when several pools are active in one semester, placing classes is much harder because one student can be enrolled in courses from different pools - one from Tech, and one from Hum;
+- assignment is based on student preferences, with one final assignment per elective bucket; students' GPA is also considered as an allocation factor;
+- after assignment, elective structure is mostly determined by the lecturer (format, grouping), the DoE provides a draft schedule for the lecturer to review and approve.
 
 Sports sections are treated as a separate process: students must accumulate 30 academic hours, but sports section scheduling is managed externally and is out of scope for this assistant.
 
-The university uses one main campus building with rooms of different capacities (lecture halls, seminar rooms, labs). Online delivery is also possible and does not consume physical room resources. Teaching staff includes professors and teaching assistants; instructor availability and instructor preferences are operationally important, especially because some teaching assistants are also students. Instructor workload is also usually expected to be clustered into fewer weekdays with a practical daily limit of around 4-5 meetings where possible.
+Across core courses, English, and electives, a strict requirement is to deliver exactly the number of academic hours prescribed by the curriculum, since these hours are included in the student's diploma record.
 
-Large external events regularly create temporary room blackouts. A concrete case is the IT conference Merge 2026: on 17-18 April, large lecture halls 105, 106, 107, and 108 were occupied by conference tracks for the full working day, which overlapped regular teaching windows.
+The university uses one main campus building with rooms of different capacities (big lecture halls and small labs rooms). Online delivery is also possible and does not consume physical room resources. Teaching staff includes professors and teaching assistants; instructor availability and instructor preferences are operationally important. Some instructors have their primary appointment at another university, so their availability constraints are often stricter than for instructors primarily based at Innopolis; in practice they frequently request to cluster all teaching into a single day or to teach on a specific day due to commitments in the other university's timetable. Instructor workload is also usually expected to be clustered into fewer weekdays with a practical daily limit of around 4-5 meetings where possible.
 
-When an instructor is also enrolled as a student, the timetable must prevent role-conflicts: the same person cannot be assigned to teach and attend another class at overlapping times.
+Many instructors are conservative about slot selection and tend to keep the same teaching slots they used in previous years.
 
-Time overlap checks are interval-based, not only slot-label-based. This is important because different programs may use different slot grids (for example, bachelors 12:10-13:40 and masters 12:40-14:10), so partial overlaps must be detected even when slot names differ. A unified slot grid can be used by default, but interval checks remain mandatory.
+Large external events regularly create temporary room blackouts. A concrete case is the IT conference Merge 2026: on 17-18 April, 16 rooms (including major lecture halls) were occupied for conference activities during the working day and overlapped regular teaching windows. Operationally, this requires active mitigation: some classes are relocated to other available rooms, while others are temporarily moved online.
+
+Additionally, some teaching assistants are studying in bachelor, master, or PhD programs at the same university, so their teaching availability can depend on the timetable itself. When an instructor is also enrolled as a student, the timetable must prevent role-conflicts: the same person cannot be assigned to teach and attend another class at overlapping times.
+
+Time overlap checks are interval-based, not only slot-label-based. This is important because different programs may use different slot grids (for example, bachelors 12:10-13:40 and masters 12:40-14:10), so partial overlaps must be detected even when slot labels are different. A unified slot grid can be used by default, but interval checks remain mandatory. There are also cases where slot offsets are introduced by individual instructor requests; such exceptions should be handled as a separate override layer rather than as standard slot-grid logic.
 
 Governance constraints also affect scheduling operations. Some programs are coordinated through curators, and schedule changes are routed through them rather than direct instructor-level negotiation. For selected tracks (for example, some Russian-language bachelor streams), room changes can be restricted because of fixed recording setup requirements.
 
@@ -89,6 +93,8 @@ In operational planning, besides feasibility, the schedule is expected to avoid 
 - no more than 3 distinct subjects per group per day where possible;
 - no more than 5 meetings per group per day where possible;
 - workload clustered into fewer weekdays for both groups and instructors where possible;
+- avoid long uninterrupted class chains without a meal break; schedules should account for a dedicated lunch break window;
+- avoid excessive idle gaps ("windows") between classes where possible;
 - minimized Saturday and late-evening classes (later than 18:00);
 - avoid assigning small audiences to excessively large rooms where possible (prefer the smallest suitable room; for example, assigning a 2-student group to a 60-seat room is considered operationally unreasonable);
 - for back-to-back classes, prefer the same room to avoid unnecessary transitions; instructor-side continuity has higher priority than group-side continuity;
