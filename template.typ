@@ -7,13 +7,14 @@
     region: "ru",
     top-edge: 0.7em,
     bottom-edge: -0.3em,
-    font: "Liberation Serif",
+    font: "Times New Roman",
+    fallback: false,
   )
   set par(
     leading: 0.7em,
     justify: true,
     first-line-indent: (
-      amount: 0.8cm,
+      amount: 1.25cm,
     ),
   )
   set list(
@@ -98,20 +99,26 @@
   )
 
   show heading.where(level: 2): it => {
-    set text(size: 1.3em)
-    
+    set text(
+      font: "Times New Roman",
+      size: 1.3em,
+    )
+
     it
 
     v(.5cm)
   }
   show heading.where(level: 3): it => {
-    set text(size: 1.25em)
-    
+    set text(
+      font: "Times New Roman",
+      size: 1.25em,
+    )
+
     it
 
     v(.2cm)
   }
-  
+
   show heading.where(level: 1): it => {
     pagebreak(weak: true)
 
@@ -122,8 +129,11 @@
         all: false,
       ),
     )
-    
-    set text(size: 1.5em)
+
+    set text(
+      font: "Times New Roman",
+      size: 1.5em,
+    )
 
     v(2.5cm)
     if it.numbering != none {

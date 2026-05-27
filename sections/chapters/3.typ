@@ -24,7 +24,7 @@ At Innopolis University, the academic year is split into Fall, Spring, and Summe
 
 Innopolis University is relatively small (around 2,000 students). This matters for external validity: many universities are an order of magnitude larger and operationally more complex, with multi-campus layouts, multiple departments/faculties, and broader governance layers. The workflow described here is designed for this institutional scale, while remaining extensible for larger deployments.
 
-The university has bachelor, master, and PhD programs, including English-taught and Russian-taught tracks. Bachelor tracks include Software Development, Cybersecurity, Data Science, AI, Robotics, and Game Development; master programs (for example, SE, AIDE, and Robotics) follow separate curricula. For bachelor students, years 1-3 are course-based and year 4 is thesis-only (no regular taught timetable). For master students, year 2 is also thesis-focused and does not require regular timetable generation.
+The university has bachelor, master, and PhD programs, including English-taught and Russian-taught tracks. Bachelor tracks include Software Development, Cybersecurity, Data Science, AI, Robotics, and Game Development; master programs (for example, SE, AIDE, and Robotics) follow separate curricula. For bachelor students, years 1-3 are course-based and year 4 is thesis-only (no regular taught timetable). For master students, year 2 is also thesis-focused and does not require regular timetable generation. PhD studies last three years: year 1 usually includes 2-3 mandatory disciplines, year 2 may include selected electives, and the remaining workload is primarily research-oriented.
 
 Students are organized into academic groups (for example, `B22-CBS-02`), where cohort, track, and group index are encoded in the group ID. However, groups are not fully disjoint:
 
@@ -62,7 +62,7 @@ Electives follow separate institutional rules:
 
 - elective buckets are semester-specific and defined by the study plan (Summer Year 1: Tech + Hum, Summer Year 2: Tech + Hum, Fall Year 3: Tech), several elective pools run simultaneously. This is the main scheduling challenge for electives: when several pools are active in one semester, placing classes is much harder because one student can be enrolled in courses from different pools - one from Tech, and one from Hum;
 - assignment is based on student preferences, with one final assignment per elective bucket; students' GPA is also considered as an allocation factor;
-- after assignment, elective structure is mostly determined by the lecturer (format, grouping), the DoE provides a draft schedule for the lecturer to review and approve.
+- before collecting student preferences, the DoE and lecturer define each elective offering for the next semester (course idea, lecturer, and expected enrollment). After assignment is finalized, the timetable is developed jointly with the lecturer. The internal course delivery structure is decided by the lecturer.
 
 Sports sections are treated as a separate process: students must accumulate 30 academic hours, but sports section scheduling is managed externally and is out of scope for this assistant.
 
@@ -193,7 +193,7 @@ Soft constraints (optimize when feasible):
 - maximize back-to-back lecture-tutorial continuity for shared audience;
 - prefer same-day coupling for related components when applicable;
 - penalize Saturday and late-evening classes;
-- penalize room oversizing and unnecessary room changes;
+- penalize room oversizing and unnecessary room changes (scoped to adjacent meetings where continuity is intended, not as a global spread-out incentive);
 - balance distribution of meetings across weekdays.
 - prefer assignments that match instructor time preferences, with role-based priority weights (for example, professor preferences can be weighted higher than teaching assistant preferences).
 
@@ -322,6 +322,8 @@ The optimization process uses a hierarchical (lexicographic) objective strategy 
 Each solved phase is fixed as a bound for the next phase. This prevents lower-priority objectives from degrading higher-priority educational structure.
 
 This design directly addresses a common practical issue: a single aggregated weighted objective may hide unacceptable violations behind a numerically improved but educationally weak schedule.
+
+Soft penalties must also be aligned with the intended outcome: if a term can be satisfied by avoiding the situation entirely, the optimizer will exploit that shortcut. A concrete example is penalizing room changes between consecutive instructor meetings: the solver may improve the score by spacing that instructor's classes apart rather than keeping back-to-back sessions in the same room, which contradicts the continuity goals described in the institutional scheduling context. Such criteria are therefore safer as narrowly scoped penalties or post-hoc verification checks than as broad minimization terms.
 
 == Validation and Quality Control Framework
 
