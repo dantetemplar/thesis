@@ -6,7 +6,7 @@ This chapter presents the design of an interactive assistant for timetable editi
 
 The system design follows four engineering principles derived from the problem analysis in Chapters 1 and 2. Each principle is linked to a concrete implementation mechanism.
 
-*First, feasibility-first optimization.* Hard constraints (no overlaps, admissible room capacities, required number of meetings) are always prioritized over preference optimization. In implementation, this is enforced via hard constraints and phase ordering in the optimizer @Ceschia_2023 @Schaerf1999.
+*First, feasibility-first optimization.* Hard constraints (no overlaps, admissible room capacities, required number of meetings) are always prioritized over preference optimization. In implementation, this is enforced as compulsory CP-SAT constraints in the primary solve pass, before any soft objective is optimized @Ceschia_2023 @Schaerf1999.
 
 *Second, perturbation-aware editing.* The workflow treats timetable maintenance as a recurring adaptation task rather than one-off timetable generation @veenstra2016. In implementation, this is realized in Stage B as user-driven editing with optional solver assistance for local adjustments.
 
@@ -193,7 +193,8 @@ Soft constraints (optimize when feasible):
 - maximize back-to-back lecture-tutorial continuity for shared audience;
 - prefer same-day coupling for related components when applicable;
 - penalize Saturday and late-evening classes;
-- penalize room oversizing and unnecessary room changes (scoped to adjacent meetings where continuity is intended, not as a global spread-out incentive);
+- penalize room oversizing in the primary solve;
+- refine narrowly scoped room continuity (back-to-back lecture-tutorial same-room alignment and instructor consecutive class/lab room consistency) in a second pass that keeps day, slot, and instructor fixed;
 - balance distribution of meetings across weekdays.
 - prefer assignments that match instructor time preferences, with role-based priority weights (for example, professor preferences can be weighted higher than teaching assistant preferences).
 
@@ -314,16 +315,31 @@ This decomposition reflects actual university operations: planners reason in wee
 
 == Multi-Objective Optimization Design
 
-The optimization process uses a hierarchical (lexicographic) objective strategy with sequential phases.
+The weekly reference solve uses a two-pass optimization workflow rather than a strict lexicographic chain with fixed objective bounds between tiers.
 
-- *Tier 1 (pedagogical coherence):* minimize ordering violations and missed lecture-to-tutorial continuity.
-- *Tier 2 (quality and comfort):* minimize calendar discomfort and resource inefficiencies (late classes, Saturday load, room oversizing, weekday imbalance).
+*Pass 1 (primary CP-SAT solve).* Hard constraints are modeled as compulsory CP-SAT rules. Soft goals are combined into one minimized objective with scale-normalized penalty terms, so pedagogical structure and timetable comfort are optimized jointly in one run. Pass 1 therefore covers, among other criteria:
 
-Each solved phase is fixed as a bound for the next phase. This prevents lower-priority objectives from degrading higher-priority educational structure.
+- component ordering (lecture before tutorial before lab);
+- same-day and back-to-back lecture-tutorial coherence;
+- weekday load limits and weekday spreading for groups and instructors;
+- late-evening and Saturday penalties;
+- room oversizing penalties.
 
-This design directly addresses a common practical issue: a single aggregated weighted objective may hide unacceptable violations behind a numerically improved but educationally weak schedule.
+The intent is to resolve as much schedule quality as possible in one model execution, because many criteria interact and benefit from joint optimization.
 
-Soft penalties must also be aligned with the intended outcome: if a term can be satisfied by avoiding the situation entirely, the optimizer will exploit that shortcut. A concrete example is penalizing room changes between consecutive instructor meetings: the solver may improve the score by spacing that instructor's classes apart rather than keeping back-to-back sessions in the same room, which contradicts the continuity goals described in the institutional scheduling context. Such criteria are therefore safer as narrowly scoped penalties or post-hoc verification checks than as broad minimization terms.
+*Pass 2 (room refinement).* Some quality criteria are unsafe to include in pass 1 even as soft penalties, because the solver can satisfy them by changing structural decisions in unintended ways. A concrete example is penalizing room swaps between an instructor's consecutive class or lab meetings: minimizing swap count may cause the solver to place those meetings in non-consecutive slots instead of keeping them adjacent in the same room.
+
+Pass 2 therefore fixes day, slot, and instructor assignment from pass 1 and re-optimizes room choice only. Its objective penalizes:
+
+- room mismatch on back-to-back lecture-tutorial pairs that are already adjacent in pass 1 (while hard-fixing same-room pairs that pass 1 already aligned);
+- remaining oversized-room assignments where a smaller feasible room exists;
+- room changes between consecutive class/lab meetings taught by the same instructor.
+
+Pass 2 also forbids regressing a meeting from a non-oversized room in pass 1 to an oversized one. Warm-start hints from pass 1 room assignments speed up the second solve.
+
+This decomposition differs from strict lexicographic optimization with fixed objective bounds between tiers. Pass 1 does not freeze partial objectives before comfort terms; instead, pass 2 fixes the *decision structure* (time and staffing) while isolating room criteria that would otherwise distort pass 1.
+
+Soft penalties must remain aligned with the intended outcome: if a penalty can be avoided entirely by sidestepping the situation it measures, the optimizer will exploit that shortcut. Such criteria are therefore deferred to pass 2 or to post-hoc verification rather than added as broad minimization terms in pass 1.
 
 == Validation and Quality Control Framework
 

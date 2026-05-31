@@ -114,7 +114,28 @@
       size: 1.25em,
     )
 
-    it
+    let prev-headings = query(selector(heading).before(it.location()))
+      .filter(h => h.location() != it.location())
+    let prev-l2 = if prev-headings.len() > 0 { prev-headings.last() } else { none }
+    let content-between-l2 = if prev-l2 != none and prev-l2.level == 2 {
+      query(
+        selector(par)
+          .or(selector(figure))
+          .or(selector(list))
+          .or(selector(enum))
+          .after(prev-l2.location())
+          .before(it.location()),
+      )
+    } else {
+      ()
+    }
+    let after-l2 = prev-l2 != none and prev-l2.level == 2 and content-between-l2.len() == 0
+
+    if after-l2 {
+      block(above: 0pt, below: 0pt)[#it]
+    } else {
+      it
+    }
 
     v(.2cm)
   }

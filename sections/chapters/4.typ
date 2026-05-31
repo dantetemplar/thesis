@@ -167,14 +167,23 @@ This mechanism avoids frequent infeasibility in real institutional datasets whil
 
 #heading(level: 3, numbering: none, outlined: false)[Multi-phase objective solving]
 
-The CP-SAT solve is implemented as a multi-phase process:
+The CP-SAT solve is implemented as two sequential passes (`hard_constraints`, then `phase2_rooms`).
 
-- phase 1: pedagogical structure quality (ordering, adjacency/coherence),
-- phase 2: timetable comfort and resource quality.
+*Pass 1* builds the full model in `prepare_model()`: interval-based no-overlap for rooms, instructors, groups, and shared-student profiles; feasible-room filtering with optional 90% attendance fallback; and a single combined minimize objective. All soft terms use fixed normalization denominators and a common rational scaling factor so penalties remain comparable across problem sizes. The terms include same-day lecture-tutorial-lab coverage, back-to-back lecture-tutorial adjacency (with a secondary same-room bonus), component-order violations, group and instructor overload and excess-active-day penalties, Saturday and late-slot counts, and oversized-room picks.
 
-In phase 2, instructor preferences are optimized as soft terms together with timetable comfort terms (late slots, Saturday load, and distribution quality). Instructor-preference penalties are scaled by priority weights. Date-specific availability is handled in the post-generation adaptation flow, not in the weekly reference solve. After each phase, the achieved objective value is fixed as a bound for subsequent phases. The solver also stores hints from the previous phase, improving continuity and practical runtime behavior.
+The goal of pass 1 is to optimize as many quality criteria as possible in one run. Pedagogical and comfort terms are not split into separate lexicographic tiers with fixed objective bounds.
 
-Solver logs are persisted per phase and included in run artifacts, enabling post-hoc audit.
+*Pass 2* runs only when pass 1 returns `OPTIMAL` or `FEASIBLE`. It reconstructs a smaller CP-SAT model with frozen day index, local slot index, and instructor option per meeting, then reassigns rooms under the same hard no-overlap constraints. Pass 2 exists because some room-continuity penalties are unsafe in pass 1: if room swaps between consecutive instructor meetings are penalized while day and slot remain free, the solver can reduce the penalty by spacing those meetings apart instead of keeping them consecutive in the same room.
+
+The pass-2 objective therefore minimizes:
+
+- room differences on adjacent lecture-tutorial pairs that pass 1 already placed back-to-back (same-room pairs from pass 1 are hard-fixed);
+- remaining oversized-room assignments where a smaller room remains feasible, with a no-regression guard for meetings already placed in non-oversize rooms in pass 1;
+- room swaps between consecutive class/lab meetings of the same instructor on the same day.
+
+Pass 1 room assignments are passed as warm-start hints. Solver logs are written to `solver_log_phase_1.txt` and `solver_log_phase_2.txt`.
+
+Date-specific availability and instructor preference windows are handled outside this weekly solve, in the post-generation adaptation workflow.
 
 #heading(level: 3, numbering: none, outlined: false)[Output artifacts]
 

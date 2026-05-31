@@ -11,8 +11,6 @@
 #counter(page).update(2)
 
 #include "sections/contents.typ"
-// #include "sections/list/tables.typ"
-// #include "sections/list/figures.typ"
 #include "sections/abstract.typ"
 
 // Start numbering pages from the first chapter
