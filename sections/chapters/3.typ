@@ -12,7 +12,7 @@ The system design follows four engineering principles derived from the problem a
 
 *Third, explicit validation transparency.* The system includes clear, user-visible checks for conflicts, constraints, and workload balance, so schedulers can verify correctness before publication. In implementation, this is realized via a dedicated checks workspace and diagnostics outputs @oude-vrielink2019.
 
-*Fourth, workflow-native integration.* The architecture is compatible with existing institutional tools (Google Sheets, web-based internal systems, calendar-based room usage practices), minimizing process friction. In implementation, this is realized through parser-based migration and Outlook-linked booking checks/synchronization.
+*Fourth, workflow-native integration.* The design accounts for legacy Google Sheets sources and institutional calendar practices without ongoing spreadsheet coupling. In implementation, timetable data are imported through a parser; a prototype spreadsheet plugin was used during migration but not retained in the final system. Outlook is used for booking checks and synchronization.
 
 == Problem Formalization
 

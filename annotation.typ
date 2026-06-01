@@ -27,7 +27,12 @@
   set par(first-line-indent: 0cm)
   set text(font: "Times New Roman", size: 1.25em, weight: "bold")
 
-  block(breakable: false, spacing: 0.65em)[#it.body]
+  block(breakable: false, spacing: 0.65em)[
+    #if it.numbering != none {
+      counter(heading).display() + ". "
+    }
+    #it.body
+  ]
 }
 
 #show heading.where(level: 2): it => {
@@ -54,11 +59,16 @@
 
 #counter(page).update(2)
 
-#include "sections/annotation/contents.typ"
-#include "sections/annotation/foreword.typ"
-
 #show: numbering
 
+#set page(
+  footer: context {
+    align(center)[#counter(page).display("1")]
+  },
+)
+
+#include "sections/annotation/contents.typ"
+#include "sections/annotation/foreword.typ"
 #include "sections/annotation/main-part.typ"
 #include "sections/annotation/conclusion.typ"
 #include "sections/annotation/references.typ"

@@ -40,10 +40,12 @@ Signatures are not in Typst. Add `my-signature.png` and `consultant-signature.pn
 
 ```bash
 typst compile thesis.typ && typst compile annotation.typ
-uv run overlay-title-signatures.py   # → thesis (signature).pdf, annotation (signature).pdf
+uv run overlay-title-signatures.py   # → thesis (signature).pdf, annotation (signature).pdf, supervisor-review (signature).pdf
 ```
 
-Run the overlay again after each compile. One file: `uv run overlay-title-signatures.py thesis` or `annotation`. Edit coordinates in `overlay-title-signatures.py`.
+Run the overlay again after each compile. One file: `uv run overlay-title-signatures.py thesis`, `annotation`, or `supervisor-review`. Edit coordinates in `overlay-title-signatures.py`.
+
+For the supervisor review, export `Supervisor Review 2026 (Alexey).docx` to `supervisor-review.pdf`, then run the overlay (signatures on page 2: supervisor and student acknowledgment).
 
 ## IDE: Tinymist
 

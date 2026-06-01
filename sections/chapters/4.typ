@@ -36,7 +36,7 @@ The initial timetable source was a highly irregular Google Spreadsheet with many
 
 #figure(
   image("../../figures/core-courses-timetable-spreadsheet.png", width: 100%),
-  caption: [Example of the original spreadsheet layout used by timetable planners before formal model integration.]
+  caption: [Example of the original spreadsheet layout used by timetable planners before migration to the formal configuration model.]
 )
 
 #figure(

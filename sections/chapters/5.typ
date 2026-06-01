@@ -14,7 +14,7 @@ Second, a two-stage planning approach was operationalized. Stage A builds a stab
 
 Third, a verification layer was integrated as a first-class component of the workflow. The checks subsystem reports conflicts, required-meeting violations, ordering/coherence issues, room-capacity risks, workload imbalance, and booking consistency problems. This makes acceptance of timetable versions evidence-based and transparent.
 
-Fourth, the system was integrated with existing institutional practices. Legacy Google Sheets data can be migrated through parser and normalization steps; Outlook-based room booking is used for conflict detection and synchronization of approved changes. This integration focus addresses a key barrier to adoption identified in prior studies @oude-vrielink2019 @Kingston2013.
+Fourth, the system was integrated with existing institutional practices. Legacy Google Sheets data can be migrated through parser and normalization steps; a prototype spreadsheet plugin was explored during migration but abandoned due to platform limits. Outlook-based room booking is used for conflict detection and synchronization of approved changes. This integration focus addresses a key barrier to adoption identified in prior studies @oude-vrielink2019 @Kingston2013.
 
 == Scientific and Practical Contribution
 
