@@ -179,6 +179,7 @@ Hard constraints in Stage A:
 - no time overlap for the same student group;
 - no time overlap for students appearing in multiple groups;
 - no overlap between teaching assignments and student attendance for people with dual role (instructor + student);
+- instructor banned weekday+slot cells (forbidden placements when that instructor teaches the meeting);
 - meeting counts satisfy the curriculum-implied weekly requirements;
 - room assignment meets required attendance threshold.
 
@@ -195,8 +196,8 @@ Soft constraints (optimize when feasible):
 - penalize Saturday and late-evening classes;
 - penalize room oversizing in the primary solve;
 - refine narrowly scoped room continuity (back-to-back lecture-tutorial same-room alignment and instructor consecutive class/lab room consistency) in a second pass that keeps day, slot, and instructor fixed;
-- balance distribution of meetings across weekdays.
-- prefer assignments that match instructor time preferences, with role-based priority weights (for example, professor preferences can be weighted higher than teaching assistant preferences).
+- balance distribution of meetings across weekdays;
+- penalize discouraged instructor weekday+slot placements in pass 1 (twelfth normalized penalty term), with role-based weights (for example, professor and visiting positions carry higher multipliers); banned cells are hard-forbidden; preferred cells are informational only.
 
 #heading(level: 3, numbering: none, outlined: false)[Stage B: Calendar-Level Adaptation (User-Driven)]
 
@@ -221,7 +222,7 @@ The domain model is implemented as typed configuration entities with explicit va
 - *Term configuration*: semester date range, active weekdays, slot start times.
 - *Room configuration*: room identifiers and capacities.
 - *Instructor configuration*: instructor identity and role metadata.
-- *Instructor preferences*: preferred time windows used in solving and verification, including preference-priority by role.
+- *Instructor slot preferences*: sparse weekday+slot grid (`preferred`, `discouraged`, `banned`); discouraged cells are penalized in pass 1, banned cells are hard-forbidden, and role metadata scales discouraged penalties.
 - *Program hierarchy*: degree/year/language structures and track-level groups.
 - *Student groups*: group code, kind, estimated size, optional explicit student membership.
 - *Course configuration*: course tags and component-level teaching requirements.
@@ -317,13 +318,14 @@ This decomposition reflects actual university operations: planners reason in wee
 
 The weekly reference solve uses a two-pass optimization workflow rather than a strict lexicographic chain with fixed objective bounds between tiers.
 
-*Pass 1 (primary CP-SAT solve).* Hard constraints are modeled as compulsory CP-SAT rules. Soft goals are combined into one minimized objective with scale-normalized penalty terms, so pedagogical structure and timetable comfort are optimized jointly in one run. Pass 1 therefore covers, among other criteria:
+*Pass 1 (primary CP-SAT solve).* Hard constraints are modeled as compulsory CP-SAT rules. Soft goals are combined into one minimized objective with twelve scale-normalized penalty terms, so pedagogical structure and timetable comfort are optimized jointly in one run. Pass 1 therefore covers, among other criteria:
 
 - component ordering (lecture before tutorial before lab);
 - same-day and back-to-back lecture-tutorial coherence;
 - weekday load limits and weekday spreading for groups and instructors;
 - late-evening and Saturday penalties;
-- room oversizing penalties.
+- room oversizing penalties;
+- discouraged instructor weekday+slot preferences (twelfth penalty term; banned cells are enforced separately as hard constraints).
 
 The intent is to resolve as much schedule quality as possible in one model execution, because many criteria interact and benefit from joint optimization.
 
@@ -347,7 +349,7 @@ To make the design operationally auditable, the assistant provides a verificatio
 
 - overlap checks (rooms, groups, instructors, and students) with interval-level intersection detection,
 - curriculum and constraint checks (required meetings, ordering relations, room capacity feasibility),
-- instructor checks (availability violations, dual-role conflict checks, and preference satisfaction reports with priority-aware summaries),
+- instructor checks (availability violations, dual-role conflict checks, and slot-preference reports for banned and discouraged placements with role-aware summaries),
 - schedule consistency checks (same-day and back-to-back coherence for related classes),
 - workload and distribution checks (group load by weekday, instructor load, weekday concentration, late slots, Saturday load),
 - room usage checks (capacity overflow, oversize assignments, room utilization and room changes),

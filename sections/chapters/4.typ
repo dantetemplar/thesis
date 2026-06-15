@@ -96,7 +96,7 @@ The optimizer accepts a structured model with strict validation rules. Implement
 - student groups with estimated/enumerated membership;
 - courses with component-level requirements.
 
-For instructors, the configuration includes preference windows used as soft penalties in optimization. Preference penalties are priority-weighted by instructor role, so violations for critical instructors can be penalized more strongly than violations for lower-priority roles.
+For instructors, the configuration includes a sparse weekday+slot preference grid. Each non-neutral cell marks a term slot as preferred, discouraged, or banned. Banned cells are enforced as hard constraints in pass 1. Discouraged placements are penalized in the twelfth normalized soft term, with role-based weights (professor and visiting positions use higher multipliers). Preferred cells are informational in the current implementation and carry no optimization penalty.
 
 The model supports:
 
@@ -152,6 +152,7 @@ Resource usage is represented via interval variables and optional intervals for 
 
 In the reference weekly solve, instructor and room availability are not enforced as hard constraints. These constraints are handled later at calendar-level adaptation, where date/week conflicts are diagnosed and resolved in user-driven workflow with optional solver assistance.
 For dual-role persons (instructor and student), the model also enforces no-overlap between their teaching assignments and their own student timetable.
+Banned instructor weekday+slot cells are enforced as hard constraints: if an instructor teaches a meeting, that meeting cannot be placed on a banned cell.
 
 Overlap detection is interval-based and therefore also captures partial overlaps between heterogeneous slot grids (for example, 12:10-13:40 intersecting 12:40-14:10), not only identical slot labels. This direct interval modeling ensures strict feasibility before optimization quality is considered.
 
@@ -169,7 +170,7 @@ This mechanism avoids frequent infeasibility in real institutional datasets whil
 
 The CP-SAT solve is implemented as two sequential passes (`hard_constraints`, then `phase2_rooms`).
 
-*Pass 1* builds the full model in `prepare_model()`: interval-based no-overlap for rooms, instructors, groups, and shared-student profiles; feasible-room filtering with optional 90% attendance fallback; and a single combined minimize objective. All soft terms use fixed normalization denominators and a common rational scaling factor so penalties remain comparable across problem sizes. The terms include same-day lecture-tutorial-lab coverage, back-to-back lecture-tutorial adjacency (with a secondary same-room bonus), component-order violations, group and instructor overload and excess-active-day penalties, Saturday and late-slot counts, and oversized-room picks.
+*Pass 1* builds the full model in `prepare_model()`: interval-based no-overlap for rooms, instructors, groups, and shared-student profiles; feasible-room filtering with optional 90% attendance fallback; banned instructor slot cells as hard constraints; and a single combined minimize objective with twelve scale-normalized penalty terms. All soft terms use fixed normalization denominators and a common rational scaling factor so penalties remain comparable across problem sizes. The terms include same-day lecture-tutorial-lab coverage, back-to-back lecture-tutorial adjacency (with a secondary same-room bonus), component-order violations, group and instructor overload and excess-active-day penalties, Saturday and late-slot counts, oversized-room picks, and discouraged instructor slot preferences (term 12).
 
 The goal of pass 1 is to optimize as many quality criteria as possible in one run. Pedagogical and comfort terms are not split into separate lexicographic tiers with fixed objective bounds.
 
@@ -183,7 +184,7 @@ The pass-2 objective therefore minimizes:
 
 Pass 1 room assignments are passed as warm-start hints. Solver logs are written to `solver_log_phase_1.txt` and `solver_log_phase_2.txt`.
 
-Date-specific availability and instructor preference windows are handled outside this weekly solve, in the post-generation adaptation workflow.
+Date-specific instructor availability is handled in the post-generation adaptation workflow. Weekly slot preferences (discouraged and banned cells) are applied during the reference solve.
 
 #heading(level: 3, numbering: none, outlined: false)[Output artifacts]
 
@@ -205,7 +206,7 @@ The implemented validation module computes verification outputs from both config
 - order violations (lab before tutorial, tutorial before lecture, etc.);
 - room overflow and room oversize checks;
 - workload checks (groups, instructors, weekdays, late slots, Saturdays);
-- instructor preference checks (scheduled in preferred vs non-preferred slots);
+- instructor slot-preference checks (banned placements as hard conflicts; discouraged placements in preference reports with role-weighted summaries);
 - dual-role conflict checks (teaching vs own student attendance overlaps);
 - room usage checks (time utilization, capacity utilization, room swaps);
 - room-feature compatibility checks (capacity plus required equipment/layout constraints);
@@ -264,6 +265,7 @@ Design justification in operational terms:
 
 - hierarchical programs/groups editor reduces ambiguity in audience definition;
 - dedicated component editor makes course constraints explicit and auditable;
+- instructor preference grid editor for weekday+slot cells (`preferred`, `discouraged`, `banned`);
 - sidebar context panel reduces cross-screen lookup during edits;
 - stable tab separation reduces accidental mixing of unrelated configuration concerns.
 

@@ -8,7 +8,7 @@ The central result is an implemented interactive assistant that supports both ba
 
 The thesis achieved the engineering objectives defined in Chapter 1 and implemented in Chapters 3-4.
 
-First, a practical Curriculum-Based Course Timetabling (CB-CTT) model was implemented with explicit hard constraints and phase-based soft optimization. The model supports mixed audience structures (shared and per-group classes), selector-driven group expansion, co-teaching alternatives, and dual-role conflict checks for users who are both instructors and students.
+First, a practical Curriculum-Based Course Timetabling (CB-CTT) model was implemented with explicit hard constraints and twelve phase-one soft penalty terms. The model supports mixed audience structures (shared and per-group classes), selector-driven group expansion, co-teaching alternatives, dual-role conflict checks for users who are both instructors and students, and instructor weekday+slot preferences (`preferred`, `discouraged`, `banned`).
 
 Second, a two-stage planning approach was operationalized. Stage A builds a stable weekly reference structure; Stage B supports user-driven calendar adaptation with diagnostics and optional solver-assisted local repair. This reflects how scheduling is actually performed in universities: planners reason in reusable weekly patterns, but execute changes on concrete dates under dynamic disturbances.
 
