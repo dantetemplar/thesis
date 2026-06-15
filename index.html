@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thesis Defense — Interactive Timetable Assistant</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/reveal.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/theme/white.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <style>
+    :root {
+      --accent: #0066a1;
+    }
+
+    .reveal {
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      color: var(--accent);
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    .reveal h1 {
+      font-size: 1.6em;
+      line-height: 1.2;
+    }
+
+    /* Content slides: left-aligned header and body */
+    .reveal section:not(.slide-title) {
+      text-align: left;
+    }
+
+    .reveal section:not(.slide-title) .section-tag {
+      display: block;
+      text-align: left;
+      font-size: 0.32em;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #aaa;
+      border-bottom: none;
+      margin: 0 0 0.12em;
+      padding: 0;
+    }
+
+    .reveal section:not(.slide-title)>h2 {
+      text-align: left;
+      font-size: 0.88em;
+      margin: 0 0 0.45em;
+      line-height: 1.15;
+    }
+
+    .reveal section.slide-title {
+      text-align: center;
+    }
+
+    /* Unified body text on all content slides */
+    .reveal section:not(.slide-title) ul,
+    .reveal section:not(.slide-title) ol,
+    .reveal section:not(.slide-title)>p,
+    .reveal section:not(.slide-title) .two-col,
+    .reveal section:not(.slide-title) .contribution,
+    .reveal section:not(.slide-title) .stage-flow {
+      font-size: 0.72em;
+      line-height: 1.3;
+    }
+
+    .reveal section:not(.slide-title) li {
+      margin-bottom: 0.3em;
+    }
+
+    .reveal section:not(.slide-title) .small-text {
+      font-size: 0.62em;
+      line-height: 1.25;
+    }
+
+    .reveal section:not(.slide-title) .two-col h3 {
+      font-size: 1em;
+      margin-bottom: 0.35em;
+    }
+
+    .reveal ul {
+      display: block;
+      margin-left: 0;
+    }
+
+    .reveal .subtitle {
+      color: #444;
+      font-size: 0.72em;
+      margin-top: 1.2em;
+      line-height: 1.5;
+    }
+
+    .reveal .title-logo {
+      height: 56px;
+      margin-bottom: 1em;
+    }
+
+    /* Override Reveal default img rule (max-height: 100% breaks in figure grids) */
+    .reveal img {
+      max-height: none;
+      max-width: 100%;
+    }
+
+    .reveal .figure-single {
+      text-align: center;
+      margin-top: 0.35em;
+    }
+
+    .reveal .figure-single img,
+    .reveal .figure-single svg {
+      display: block;
+      margin: 0 auto;
+      max-height: 300px;
+      width: auto;
+      max-width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .reveal .figure-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75em;
+      align-items: start;
+      width: 100%;
+    }
+
+    .reveal .figure-grid figure {
+      margin: 0;
+      min-width: 0;
+    }
+
+    .reveal .figure-grid img {
+      display: block;
+      margin: 0 auto;
+      width: auto;
+      max-width: 100%;
+      max-height: 320px;
+      height: auto;
+      object-fit: contain;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .reveal figcaption {
+      font-size: 0.38em;
+      color: #666;
+      margin-top: 0.35em;
+      text-align: left;
+    }
+
+    .reveal section.slide-figures>ul {
+      margin-bottom: 0.35em;
+    }
+
+    .reveal section.slide-figures>ul li {
+      margin-bottom: 0.2em;
+    }
+
+    .reveal section.slide-figures .figure-single img,
+    .reveal section.slide-figures .figure-single svg {
+      max-height: 340px;
+    }
+
+    .reveal section.slide-figures .figure-grid img {
+      max-height: 360px;
+    }
+
+    .reveal section.slide-arch .figure-single img,
+    .reveal section.slide-arch .figure-single svg {
+      max-height: 480px;
+    }
+
+    .reveal .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2em;
+      align-items: start;
+      text-align: left;
+    }
+
+    .reveal .two-col h3 {
+      margin-bottom: 0.35em;
+    }
+
+    .reveal .workflow-diagram {
+      margin-top: 0.65em;
+      font-size: 0.52em;
+      line-height: 1.2;
+    }
+
+    .reveal .workflow-phase {
+      display: flex;
+      align-items: center;
+      gap: 0.75em;
+    }
+
+    .reveal .workflow-phase-label {
+      flex: 0 0 7.5em;
+      font-size: 0.85em;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #7a96aa;
+      text-align: right;
+    }
+
+    .reveal .stage-flow {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.4em;
+      flex: 1;
+      flex-wrap: nowrap;
+    }
+
+    .reveal .stage-box {
+      background: #f0f6fa;
+      border: 1px solid #c5d9e8;
+      border-radius: 6px;
+      padding: 0.45em 0.65em;
+      color: #333;
+      white-space: nowrap;
+    }
+
+    .reveal .stage-arrow {
+      color: var(--accent);
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .reveal .workflow-connector {
+      display: flex;
+      align-items: center;
+      gap: 0.75em;
+      margin: 0.35em 0;
+      color: var(--accent);
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+
+    .reveal .workflow-connector::before {
+      content: "";
+      flex: 0 0 7.5em;
+    }
+
+    .reveal .questions-slide>h2:last-of-type {
+      font-size: 1em;
+      margin-top: 0.5em;
+      text-align: left;
+    }
+
+    .reveal section.questions-slide .two-col {
+      font-size: 0.88em;
+      line-height: 1.35;
+    }
+
+    .reveal section.questions-slide .two-col h3 {
+      font-size: 1.15em;
+      margin-bottom: 0.4em;
+    }
+
+    .reveal section.questions-slide .two-col li {
+      margin-bottom: 0.35em;
+    }
+
+    .reveal .contribution {
+      margin-top: 0.5em;
+    }
+
+    .reveal .small-text {
+      color: #555;
+      text-align: left;
+    }
+
+    .reveal .section-tag {
+      display: inline-block;
+      font-size: 0.48em;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #888;
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 0.15em;
+      margin-bottom: 0.8em;
+    }
+
+    /* section-tag overridden on content slides above */
+
+    .reveal .slide-compact .section-tag {
+      margin-bottom: 0.1em;
+    }
+
+    .reveal .formula {
+      font-size: 0.58em;
+      line-height: 1.35;
+      background: #f0f6fa;
+      border: 1px solid #c5d9e8;
+      border-radius: 6px;
+      padding: 0.55em 0.75em;
+      margin: 0.35em 0 0.5em;
+      font-family: "Cambria Math", "Times New Roman", serif;
+      color: #222;
+    }
+
+    .reveal .term-table {
+      font-size: 0.58em;
+      line-height: 1.25;
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.25em;
+    }
+
+    .reveal .term-table th,
+    .reveal .term-table td {
+      border: 1px solid #d8e4ee;
+      padding: 0.28em 0.45em;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .reveal .term-table th {
+      background: #f0f6fa;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .reveal section.slide-objective>h2 {
+      font-size: 0.82em;
+      margin-bottom: 0.3em;
+    }
+
+    .reveal section.slide-objective .formula {
+      font-size: 0.5em;
+      padding: 0.4em 0.6em;
+      margin: 0.2em 0 0.35em;
+    }
+
+    .reveal section.slide-objective .term-table {
+      font-size: 0.46em;
+      line-height: 1.2;
+    }
+
+    .reveal section.slide-objective .term-table th,
+    .reveal section.slide-objective .term-table td {
+      padding: 0.22em 0.35em;
+    }
+
+    .reveal section.slide-objective .small-text {
+      font-size: 0.5em;
+      margin-top: 0.25em;
+    }
+
+    .reveal .objective-formula {
+      display: flex;
+      align-items: center;
+      gap: 1em;
+      flex-wrap: wrap;
+      font-size: 0.52em;
+      line-height: 1.3;
+      background: linear-gradient(135deg, #f0f6fa 0%, #e8f2f8 100%);
+      border: 1px solid #c5d9e8;
+      border-radius: 8px;
+      padding: 0.5em 0.75em;
+      margin: 0.15em 0 0.55em;
+    }
+
+    .reveal .objective-formula .formula-main {
+      font-family: "Cambria Math", "Times New Roman", serif;
+      color: #1a3a52;
+      font-size: 1.05em;
+    }
+
+    .reveal .objective-formula .formula-meta {
+      color: #5a7a92;
+      font-size: 0.88em;
+    }
+
+    .reveal section.slide-objective-formula {
+      text-align: left;
+    }
+
+    .reveal section.slide-objective-formula>h2 {
+      font-size: 0.88em;
+      margin-bottom: 0.45em;
+      text-align: left;
+    }
+
+    .reveal .math-display {
+      margin: 0.35em 0 0.55em;
+      padding: 0;
+      text-align: left;
+    }
+
+    .reveal .math-display .katex {
+      font-size: 1.75em;
+    }
+
+    .reveal .math-legend {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.35em 1.2em;
+      max-width: 100%;
+      margin: 0;
+      text-align: left;
+      font-size: 0.62em;
+      line-height: 1.35;
+      padding: 0.55em 0.75em;
+      background: #f8fbfd;
+      border: 1px solid #d8e4ee;
+      border-radius: 6px;
+    }
+
+    .reveal .math-legend dt {
+      margin: 0;
+      font-family: "Cambria Math", "Times New Roman", serif;
+      color: #1a3a52;
+      white-space: nowrap;
+      font-size: 1.05em;
+    }
+
+    .reveal .math-legend dd {
+      margin: 0;
+      color: #444;
+    }
+
+    .reveal .math-legend .katex {
+      font-size: 1.08em;
+    }
+
+    .reveal .term-tier-label {
+      font-size: 0.42em;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #7a96aa;
+      margin: 0.35em 0 0.3em;
+    }
+
+    .reveal .term-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.45em;
+      margin-top: 0.15em;
+    }
+
+    .reveal .term-grid.cols-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .reveal .term-card {
+      position: relative;
+      background: #fff;
+      border: 1px solid #d8e4ee;
+      border-radius: 8px;
+      padding: 0.45em 0.55em 0.45em 2.1em;
+      box-shadow: 0 1px 4px rgba(0, 40, 80, 0.05);
+      min-height: 0;
+    }
+
+    .reveal .term-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      border-radius: 8px 0 0 8px;
+      background: var(--tier-color, #c5d9e8);
+    }
+
+    .reveal .term-card.tier-student {
+      --tier-color: #0066a1;
+    }
+
+    .reveal .term-card.tier-pedagogy {
+      --tier-color: #3d8b6e;
+    }
+
+    .reveal .term-card.tier-instructor {
+      --tier-color: #7a6b9e;
+    }
+
+    .reveal .term-card.tier-schedule {
+      --tier-color: #7a6b9e;
+    }
+
+    .reveal .term-card.tier-resource {
+      --tier-color: #b8860b;
+    }
+
+    .reveal .term-rank {
+      position: absolute;
+      left: 0.55em;
+      top: 0.42em;
+      width: 1.35em;
+      height: 1.35em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.38em;
+      font-weight: 700;
+      color: #fff;
+      background: var(--tier-color, #7a96aa);
+      border-radius: 50%;
+    }
+
+    .reveal .term-card h3 {
+      font-size: 0.44em;
+      margin: 0 0 0.2em;
+      color: #1a3a52;
+      line-height: 1.2;
+    }
+
+    .reveal .term-card .term-goal {
+      font-size: 0.36em;
+      color: #333;
+      margin: 0 0 0.15em;
+      line-height: 1.25;
+    }
+
+    .reveal .term-card .term-penalty {
+      font-size: 0.32em;
+      color: #6a8498;
+      margin: 0;
+      font-family: "Cambria Math", "Times New Roman", serif;
+      line-height: 1.2;
+    }
+
+    .reveal section.slide-objective-terms .section-tag {
+      margin-bottom: 0.35em;
+    }
+
+    .reveal section.slide-objective-terms .term-tier-label {
+      margin-top: 0.25em;
+    }
+
+    .reveal section.slide-objective-terms .term-tier-label:first-of-type {
+      margin-top: 0;
+    }
+
+    .reveal section.slide-objective .objective-footnote {
+      font-size: 0.38em;
+      color: #6a8498;
+      margin-top: 0.4em;
+      line-height: 1.3;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- Slide 1: Title -->
+      <section class="slide-title">
+        <img class="title-logo" src="figures/iu.png" alt="Innopolis University">
+        <h1>Interactive Assistant for Timetable Editing and Optimization in Educational Institutions</h1>
+        <p class="subtitle">
+          Ruslan Belkov<br>
+          Supervisor: Alexey Potyomkin<br>
+          Consultant: Alexander Gasnikov<br>
+          Innopolis University · 2026
+        </p>
+        <aside class="notes">
+          Good morning. My name is Ruslan Belkov. Today I will present my bachelor's thesis,
+          "Interactive Assistant for Timetable Editing and Optimization in Educational Institutions."
+          The work was supervised by Alexey Potyomkin, with Alexander Gasnikov as consultant, at Innopolis University.
+        </aside>
+      </section>
+
+      <!-- Slide 2: Research Context (~1 min) -->
+      <section class="slide-compact">
+        <p class="section-tag">Research Context</p>
+        <h2>Educational Timetabling</h2>
+        <ul>
+          <li>NP-hard: assign courses, rooms, instructors, and groups under hard and soft constraints</li>
+          <li>Long research history since the 1960s — benchmarks, competitions, many algorithmic approaches</li>
+          <li>Case study: Innopolis DoE, single campus, ~1,000 affected students</li>
+        </ul>
+        <aside class="notes">
+          My work sits at the intersection of combinatorial optimization and interactive decision support.
+          Specifically, I work on Curriculum-Based Course Timetabling — an NP-hard problem where we must assign
+          courses, rooms, instructors, and student groups to timeslots while satisfying hard constraints and optimizing
+          soft ones.
+          The field has a long history with competitions and benchmarks. My case study is the Department of Education
+          at Innopolis University — a single-campus institution with roughly one thousand affected students.
+        </aside>
+      </section>
+
+      <!-- Slide 3: Literature Review — methods (~1 min) -->
+      <section>
+        <p class="section-tag">Literature Review</p>
+        <h2>What the Literature Actually Uses</h2>
+        <ul>
+          <li>Educational timetabling papers mostly report metaheuristics (GA, tabu search, SA), IP, and graph coloring
+          </li>
+          <li>Standard formulation: Curriculum-Based Course Timetabling (CB-CTT); ITC benchmarks and competitions</li>
+          <li>Success is usually measured by quality of initial timetable generation from scratch</li>
+          <li>Adoption reality: most HEIs still rely on spreadsheets (Oude Vrielink et al. 2019)</li>
+        </ul>
+        <p class="small-text">Schaerf 1999 · Ceschia et al. 2023</p>
+        <aside class="notes">
+          In the literature review, I surveyed what methods researchers actually apply to university timetabling.
+          The dominant story in papers is metaheuristics — genetic algorithms, tabu search, simulated annealing —
+          plus integer programming and graph coloring. The standard formulation is Curriculum-Based Course Timetabling,
+          evaluated on ITC benchmarks. Success is usually measured by the quality of initial generation from scratch.
+          At the same time, adoption studies show that most institutions still schedule in spreadsheets.
+        </aside>
+      </section>
+
+      <!-- Slide 4: Literature Review — practice gap (~1 min) -->
+      <section>
+        <p class="section-tag">Literature Review</p>
+        <h2>A Paradox: Universal Problem, Weak Solutions</h2>
+        <ul>
+          <li>Every university (and many schools) builds timetables every term — a universal operational burden</li>
+          <li>For such a universal problem, academic effort is surprisingly thin — the field is far from mature</li>
+          <li>In practice, planners still rely on spreadsheets, manual fixes, and disconnected tools</li>
+          <li>Usable open-source products are scarce; commercial systems are often inconvenient, incomplete, or hard to
+            adapt locally</li>
+          <li>The real gap is not algorithmic fashion — it is usable, deployable tooling for everyday scheduling and
+            maintenance</li>
+        </ul>
+        <p class="small-text">Side note: CP-SAT solvers appear more in shift scheduling than in university timetabling
+          papers — hard university constraints would suit them, but the literature rarely goes there</p>
+        <aside class="notes">
+          The main paradox I see is not about a specific solver technology or its quality. Every university — and many
+          schools — must
+          build and maintain timetables every term. You would expect a mature, well-funded research area with strong
+          tooling behind it. Instead, academic attention is surprisingly limited — far less than the scale of the
+          problem would suggest. And in practice the situation is worse: planners work in spreadsheets, patch schedules
+          by hand, and reconcile room bookings separately. Usable open-source systems are scarce, and commercial
+          products are frequently inconvenient, incomplete, or difficult to adapt to local rules and workflow. The odd
+          part is that such a common problem is still weakly solved in daily use. Also, CP-SAT solvers appearing more in
+          shift scheduling than in university papers;
+
+          So, the biggest issue is the lack of sufficient, convenient tools. That is what motivated this thesis.
+        </aside>
+      </section>
+
+      <!-- Slide 5: Literature Review — open problems found (~1 min) -->
+      <section>
+        <p class="section-tag">Literature Review</p>
+        <h2>Open Problems Identified</h2>
+        <ul>
+          <li>Post-publication maintenance understudied vs. initial generation (Veenstra &amp; Vis 2016 — Minimum
+            Perturbation Problem)</li>
+          <li>Lifecycle gap: planners need refinement, publication, and ongoing adaptation — not one-shot solves
+            (Kingston 2013)</li>
+          <li>Adoption barriers: poor workflow integration, opaque solvers, inflexible incremental edits</li>
+          <li>Interactivity treated as UX add-on, not part of solution quality (Müller &amp; Barták 2001)</li>
+        </ul>
+        <aside class="notes">
+          From this review, I identified several open problems. First, post-publication maintenance is far less studied
+          than initial generation.
+          Second, planners need support across the full lifecycle: generation, refinement,
+          publication, and ongoing adaptation — not a one-shot solve. Third, adoption barriers remain: poor workflow
+          integration, opaque solvers, and difficulty making small incremental edits. Finally, interactivity is often
+          treated as a non-essential UI feature rather than part of what makes a solution good. More than sixty percent
+          of
+          institutions
+          revise at least ten percent of lessons after publication, yet most systems still fall back to manual editing
+          or full regeneration.
+        </aside>
+      </section>
+
+      <!-- Slide 6: UniTime — adoption experience (~1 min) -->
+      <section class="slide-compact">
+        <p class="section-tag">Literature Review</p>
+        <h2>UniTime: Promising, but Not Enough</h2>
+        <ul>
+          <li>A large share of thesis effort went into studying UniTime, configuring it, and working through its
+            limitations</li>
+          <li>UniTime (Müller &amp; Murray 2009) — mature collaborative timetabling platform; looked ideal for Innopolis
+          </li>
+          <li>In practice, setup consumed enormous time; daily use was very inconvenient</li>
+          <li>Functionality limited for local rules (mixed audiences, dual-role staff, Outlook) — hard
+            to extend</li>
+          <li>That experience directly motivated building a workflow-native assistant instead</li>
+        </ul>
+        <p class="small-text">Dimopoulou &amp; Miliotis 2009: adoption often requires extensive customization, training,
+          and ongoing support</p>
+        <aside class="notes">
+          An important part of this thesis did not start with our own assistant. A large share of the work went into
+          studying UniTime, configuring it for Innopolis, and essentially fighting the system to make it fit our needs.
+          UniTime, developed in Purdue University, is one of the best-known academic timetabling platforms —
+          collaborative
+          editing, multi-stakeholder constraints, built-in optimization. On paper, it was the most promising path
+          forward.
+          In practice, setup alone consumed an enormous amount of time. Day-to-day use will be very inconvenient for
+          planners.
+          The functionality did not cover our local rules — mixed audiences, instructors who are also
+          students, Outlook-based booking — and extending the system proved difficult. That experience with UniTime is a
+          direct reason why the thesis pivoted to
+          a dedicated assistant tailored to how Innopolis schedule actually works.
+        </aside>
+      </section>
+
+      <!-- Slide 7: Open Problem — operational challenge (~1.5 min) -->
+      <section>
+        <p class="section-tag">Open Problem</p>
+        <h2>The Problem at Innopolis University</h2>
+        <ul>
+          <li>Current workflow: Google Sheets, ad hoc scripts, and manual Outlook room checks — no single source of
+            truth</li>
+          <li>After publication, timetables still change constantly: illness, room blackouts, curriculum updates</li>
+          <li>Fixes cascade: move one lecture for a room blackout → Outlook still books the old room, another collision
+            in the new chosen slot</li>
+          <li>Innopolis-specific constraints: instructors who are also enrolled students; visiting lecturers with
+            burst-like availability (cluster all teaching on one or two days); conference room blackouts</li>
+          <li>Volume overwhelms attention: editors miss gaps (e.g. an elective never scheduled) or room conflicts
+            buried in the spreadsheet</li>
+          <li>Hours of manual reconciliation across disconnected tools — multiple times every semester</li>
+        </ul>
+        <aside class="notes">
+          At Innopolis University, scheduling still relies on Google Sheets, ad hoc scripts,
+          and manual Outlook room checks. Timetables are edited continuously after publication — because of
+          teacher illness, room blackouts because of events, or late curriculum changes. One fix often triggers the
+          next: move a
+          lecture because a hall is blocked, and suddenly the Outlook booking still points at the old room, and
+          the new slot you pick already has another collision. On top of
+          generic timetabling pain, Innopolis adds constraints that spreadsheets track poorly: some instructors
+          are also enrolled as students, so teaching and attendance cannot overlap; visiting lecturers with a
+          primary appointment elsewhere often need burst-like schedules — all their meetings on one or two days;
+          and large conferences can suddenly block dozens of rooms.
+          A lot of this is also plain human error under cognitive load: one person tracks thousands of cells,
+          and it is easy to overlook that an elective simply has no slot, or that two groups share the same room
+          at the same time — until someone reports it after publication.
+
+          This happens multiple times every semester.
+        </aside>
+      </section>
+
+      <!-- Slide 8: Open Problem — engineering objectives (~1.5 min) -->
+      <section class="slide-compact">
+        <p class="section-tag">Open Problem</p>
+        <h2>Engineering Objectives</h2>
+        <ul>
+          <li>EO1 — Engineer a stable weekly baseline schedule: feasible CP-SAT solver workflow for real institutional
+            data
+          </li>
+          <li>EO2 — Support user-driven schedule maintenance with verification and diagnostics</li>
+          <li>EO3 — Represent curriculum and constraints in a formal CB-CTT data model</li>
+          <li>EO4 — Implement transparent verification and acceptance checks with clear diagnostics</li>
+          <li>EO5 — Build an integrated user workflow: settings, timetable, checks; Outlook booking</li>
+        </ul>
+        <aside class="notes">
+          To address this problem, I defined five engineering objectives — they are on the slide.
+          EO1: feasible baseline via CP-SAT solver. EO2: post-publication edits with verification.
+          EO3: formal data model. EO4: transparent diagnostics, not opaque scores.
+          EO5: integrated workflow across settings, timetable, and checks; Outlook booking.
+        </aside>
+      </section>
+
+      <!-- Slide 9: Proposed Solution — approach (~1 min) -->
+      <section>
+        <p class="section-tag">Proposed Solution</p>
+        <h2>Human-in-the-Loop Scheduling Assistant</h2>
+        <ul>
+          <li>Weekly baseline generation: reference weekly structure via CP-SAT solver under CB-CTT model</li>
+          <li>Calendar maintenance: planner edits concrete dates; checks catch cascading conflicts</li>
+          <li>A CP-SAT solver builds the weekly baseline; every post-publication change stays with the planner</li>
+        </ul>
+        <div class="workflow-diagram">
+          <div class="workflow-phase">
+            <span class="workflow-phase-label">Baseline</span>
+            <div class="stage-flow">
+              <span class="stage-box">Configure</span>
+              <span class="stage-arrow">→</span>
+              <span class="stage-box">Weekly baseline</span>
+            </div>
+          </div>
+          <div class="workflow-connector">↓</div>
+          <div class="workflow-phase">
+            <span class="workflow-phase-label">Maintenance</span>
+            <div class="stage-flow">
+              <span class="stage-box">Inspect &amp; check</span>
+              <span class="stage-arrow">→</span>
+              <span class="stage-box">Calendar maintenance</span>
+              <span class="stage-arrow">→</span>
+              <span class="stage-box">Outlook sync</span>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">
+          My proposed solution is a human-in-the-loop scheduling assistant with two phases. In weekly baseline
+          generation,
+          the system produces a reference weekly structure using CP-SAT solver under a CB-CTT model. In calendar
+          maintenance,
+          that structure is instantiated on concrete calendar dates; the planner makes each edit manually and runs
+          checks to see what broke.
+        </aside>
+      </section>
+
+      <!-- Slide 10: Problem formulation (~1 min) -->
+      <section class="slide-compact">
+        <p class="section-tag">Optimization</p>
+        <h2>Problem Formulation (CB-CTT)</h2>
+        <ul>
+          <li>Input: courses, components (lec / tut / lab), groups, instructors, rooms, time grid</li>
+          <li>Decision: assign each meeting a day, slot, instructor, and room; phase&nbsp;2 may reassign rooms</li>
+          <li>Hard constraints: no group / instructor / room overlaps; capacity; required meetings; component ordering;
+            instructor <code>banned</code> slots</li>
+          <li>Soft objective: 12 separate penalty terms with normalized weights (next slides)</li>
+          <li>Engine: Google OR-Tools CP-SAT solver</li>
+        </ul>
+        <aside class="notes">
+          Weekly baseline generation produces the reference weekly structure. I formulate the problem as
+          Curriculum-Based Course Timetabling.
+          The input is courses with their components, student groups, instructors, rooms, and a time
+          grid. Phase one assigns day, slot, instructor, and room under the combined soft
+          objective;
+          phase two freezes time and instructor choices and may reassign rooms only.
+          Hard constraints enforce feasibility — no overlaps for groups, instructors, or rooms; room capacity; all
+          required
+          meetings scheduled; pedagogical ordering where audiences overlap; instructor banned timeslots cells
+          forbidden.
+          Soft goals are encoded as twelve separate penalty terms with normalized coefficients.
+          The model is implemented and solved with Google OR-Tools CP-SAT solver.
+        </aside>
+      </section>
+
+      <!-- Slide 11: Soft objective formula (~1 min) -->
+      <section class="slide-objective-formula slide-compact">
+        <p class="section-tag">Optimization</p>
+        <h2>Soft Objective Function</h2>
+        <div class="math-display">
+          \[
+          \min \sum_{i=1}^{n}
+          \left\lfloor \frac{w_i \cdot K}{D_i} \right\rceil p_i
+          \]
+        </div>
+        <dl class="math-legend">
+          <dt>\(n\)</dt>
+          <dd>soft penalty terms (\(n = 12\), phase&nbsp;1)</dd>
+          <dt>\(p_i\)</dt>
+          <dd>penalty count; \(0 \le p_i \le D_i\)</dd>
+          <dt>\(D_i\)</dt>
+          <dd>worst-case bound for \(p_i\)</dd>
+          <dt>\(w_i\)</dt>
+          <dd>term weight (\(w_i = 1\))</dd>
+          <dt>\(K\)</dt>
+          <dd>scale constant (\(K = 10^{4}\))</dd>
+          <dt>\(\lfloor \cdot \rceil\)</dt>
+          <dd>nearest-integer rounding</dd>
+        </dl>
+        <aside class="notes">
+          Phase one combines twelve soft penalty terms into one weighted sum.
+          We normalize each term by its worst-case bound so every criterion lands in a zero-to-one range — so different
+          criteria are comparable instead of drowning each other out.
+          In practice that normalization improved solver convergence a lot.
+          Coefficients are rounded to integers because the CP-SAT solver can work only with integers.
+          Weights are uniformly equal to 1 for now; planners rely on verification reports to see what to fix, though the
+          weights could be tuned later if needed.
+        </aside>
+      </section>
+
+      <!-- Slide 12: Optimization objective — pedagogical coherence (~1 min) -->
+      <section class="slide-objective slide-compact slide-objective-terms">
+        <p class="section-tag">Optimization — Objective</p>
+        <p class="term-tier-label">Pedagogical coherence</p>
+        <div class="term-grid cols-2">
+          <article class="term-card tier-pedagogy">
+            <span class="term-rank">1</span>
+            <h3>Same-day lec + tut + lab</h3>
+            <p class="term-goal">Lecture, tutorial &amp; lab on one day per (course, group)</p>
+            <p class="term-penalty">p = T − # satisfied triples</p>
+          </article>
+          <article class="term-card tier-pedagogy">
+            <span class="term-rank">2</span>
+            <h3>Adjacent lec → tut</h3>
+            <p class="term-goal">Tutorial immediately after lecture, same day</p>
+            <p class="term-penalty">p = P − # satisfied pairs</p>
+          </article>
+          <article class="term-card tier-pedagogy">
+            <span class="term-rank">3</span>
+            <h3>Adjacent lec → tut, same room</h3>
+            <p class="term-goal">Back-to-back lec &amp; tut without a room change</p>
+            <p class="term-penalty">p = P − # same-room pairs</p>
+          </article>
+          <article class="term-card tier-pedagogy">
+            <span class="term-rank">4</span>
+            <h3>Room utilization</h3>
+            <p class="term-goal">Prefer smallest suitable room — avoid &gt;30% oversize when a smaller one fits</p>
+            <p class="term-penalty">p = # oversize picks</p>
+          </article>
+          <article class="term-card tier-pedagogy">
+            <span class="term-rank">5</span>
+            <h3>Wrong component order</h3>
+            <p class="term-goal">Avoid lab before lecture or tutorial; avoid tutorial before lecture</p>
+            <p class="term-penalty">p = # reversed meeting pairs</p>
+          </article>
+        </div>
+        <aside class="notes">
+          The first five soft terms are about pedagogical coherence — how lecture, tutorial, and lab fit together for
+          the same group.
+          We favor all components on one day, tutorial immediately after lecture in the same room.
+          Room utilization pushes the solver toward a smaller suitable room instead of an oversized hall.
+          Wrong component order catches reversed sequences — for example lab before lecture, or tutorial before lecture;
+          while actually it is not a problem - we could skip component on first week in semester if needed.
+          These are the criteria that matter for teaching quality, not hard feasibility.
+        </aside>
+      </section>
+
+      <!-- Slide 13: Optimization objective — student & instructor experience (~1 min) -->
+      <section class="slide-objective slide-compact slide-objective-terms">
+        <p class="section-tag">Optimization — Objective</p>
+        <p class="term-tier-label">Student experience</p>
+        <div class="term-grid cols-2">
+          <article class="term-card tier-student">
+            <span class="term-rank">6</span>
+            <h3>Meetings overload</h3>
+            <p class="term-goal">At most 5 meetings per group per day</p>
+            <p class="term-penalty">p = # overloaded (group, day) flags</p>
+          </article>
+          <article class="term-card tier-student">
+            <span class="term-rank">7</span>
+            <h3>Distinct subjects overload</h3>
+            <p class="term-goal">At most 3 distinct subjects per group per day</p>
+            <p class="term-penalty">p = # days with ≥4 subjects</p>
+          </article>
+          <article class="term-card tier-student">
+            <span class="term-rank">8</span>
+            <h3>Weekend (Sat / Sun)</h3>
+            <p class="term-goal">No classes on weekend days</p>
+            <p class="term-penalty">p = # weekend meetings</p>
+          </article>
+          <article class="term-card tier-student">
+            <span class="term-rank">9</span>
+            <h3>After 18:00</h3>
+            <p class="term-goal">No meetings in slots ending after 18:00</p>
+            <p class="term-penalty">p = # late-slot meetings</p>
+          </article>
+          <article class="term-card tier-student">
+            <span class="term-rank">10</span>
+            <h3>Group spread</h3>
+            <p class="term-goal">Compact week — active days ≤ ⌈weekly / 5⌉ per group</p>
+            <p class="term-penalty">p = Σ excess<sub>g</sub></p>
+          </article>
+        </div>
+        <p class="term-tier-label">Instructor experience</p>
+        <div class="term-grid cols-2">
+          <article class="term-card tier-instructor">
+            <span class="term-rank">11</span>
+            <h3>Instructor spread</h3>
+            <p class="term-goal">Compact teaching week per instructor</p>
+            <p class="term-penalty">p = Σ excess<sub>i</sub> (assignment-aware)</p>
+          </article>
+          <article class="term-card tier-instructor">
+            <span class="term-rank">12</span>
+            <h3>Instructor preferences</h3>
+            <p class="term-goal">Penalize discouraged weekday+slot placements; <code>banned</code> cells are
+              hard-forbidden</p>
+            <p class="term-penalty">p = Σ weighted discouraged violations (× role multiplier)</p>
+          </article>
+        </div>
+        <aside class="notes">
+          Seven terms target timetable comfort for people in the schedule. Student experience covers meetings overload
+          and distinct subjects overload, avoiding weekends and late slots, and group spread — packing a group's
+          meetings into fewer weekdays so other days stay completely free.
+          Instructor spread clusters teaching into fewer weekdays.
+          Instructor preferences penalize discouraged time slots; banned slots are hard-forbidden and never scheduled.
+        </aside>
+      </section>
+
+      <!-- Slide 14: Phase 2 room objective (~1 min) -->
+      <section class="slide-objective slide-compact slide-objective-terms">
+        <p class="section-tag">Optimization — Phase 2</p>
+        <h2>Room Choice Refinement</h2>
+        <p class="small-text">
+          Separate CP-SAT solver run after phase&nbsp;1 — day, slot, and instructor fixed; only rooms are reassigned.
+        </p>
+        <div class="term-grid cols-2">
+          <article class="term-card tier-resource">
+            <span class="term-rank">1</span>
+            <h3>Back-to-back lec → tut room mismatch</h3>
+            <p class="term-goal">Adjacent lecture &amp; tutorial on the same day — unify rooms when phase&nbsp;1 placed
+              them apart</p>
+            <p class="term-penalty">p = # diff-room pairs (same-room pairs hard-fixed)</p>
+          </article>
+          <article class="term-card tier-resource">
+            <span class="term-rank">2</span>
+            <h3>Room utilization</h3>
+            <p class="term-goal">Prefer smallest suitable room — no regression from a non-oversize phase&nbsp;1 pick</p>
+            <p class="term-penalty">p = # oversize picks</p>
+          </article>
+          <article class="term-card tier-resource">
+            <span class="term-rank">3</span>
+            <h3>Consecutive class / lab room swap</h3>
+            <p class="term-goal">Same instructor, same day, back-to-back class or lab — avoid changing rooms</p>
+            <p class="term-penalty">p = # consecutive room mismatches</p>
+          </article>
+        </div>
+        <p class="objective-footnote">
+          Unsafe in phase&nbsp;1 — the solver would dodge these by spreading meetings to different days or slots.
+        </p>
+        <aside class="notes">
+          Phase two is a follow-up solve. Phase one assigns day, slot, instructor, and room under the
+          twelve
+          soft terms; then Phase two rebuilds a smaller model for the CP-SAT solver with everything except rooms frozen
+          and
+          reassigns rooms only — nudging adjacent lecture–tutorial pairs into the same room, preferring smaller
+          suitable rooms without regressing good picks, and avoiding room hops between consecutive labs.
+          These penalties are unsafe in pass one because the solver could avoid them by moving meetings
+          apart.
+        </aside>
+      </section>
+
+      <!-- Slide 15: Planner interface (~1 min) -->
+      <section class="slide-figures">
+        <p class="section-tag">Planner Workflow</p>
+        <h2>Planner Interface</h2>
+        <p class="small-text">React + Vite · three workspaces</p>
+        <div class="figure-grid">
+          <figure>
+            <img src="figures/schedule-assistant-settings-courses.png" alt="Settings workspace — courses editor">
+            <figcaption>Settings — curriculum &amp; constraints</figcaption>
+          </figure>
+          <figure>
+            <img src="figures/schedule-assistant-timetable.png" alt="Timetable workspace">
+            <figcaption>Timetable — multi-view inspection &amp; editing</figcaption>
+          </figure>
+        </div>
+        <ul>
+          <li>Planner configures curriculum, inspects weekly views (group / room / instructor), applies concrete edits
+          </li>
+          <li>Weekly template instantiated on calendar dates — planner edits manually; checks surface conflicts</li>
+        </ul>
+        <aside class="notes">
+          Calendar maintenance is where the planner actually works day to day. The web interface has three workspaces: timetable, settings, checks;
+          here is shown two of them.
+          Settings is where courses, groups, instructors, and rooms are edited in an explicit, auditable form — the same
+          model the solver consumes. Timetable provides weekly navigation with views by group, room, and
+          instructor.
+          After weekly baseline generation, the planner instantiates the template on concrete calendar dates and makes
+          edits if needed. The planner stays in control of each decision; the checks workspace shows what needs
+          attention.
+        </aside>
+      </section>
+
+      <!-- Slide 16: Verification & Outlook (~1 min) -->
+      <section class="slide-figures">
+        <p class="section-tag">Planner Workflow</p>
+        <h2>Verification &amp; Outlook Integration</h2>
+        <ul>
+          <li>Checks workspace: overlaps, capacity, missing or miscounted meetings, instructor conflicts</li>
+          <li>Outlook: room-calendar conflicts and meetings without a booking</li>
+        </ul>
+        <div class="figure-grid">
+          <figure>
+            <img src="figures/outlook-calendar-view.png" alt="Outlook calendar view">
+            <figcaption>Outlook — room calendar view</figcaption>
+          </figure>
+          <figure>
+            <img src="figures/outlook-event-details.png" alt="Outlook event details">
+            <figcaption>One-click booking sync</figcaption>
+          </figure>
+        </div>
+        <aside class="notes">
+          The checks workspace runs issue checks on the current schedule and lists concrete problems for the planner —
+          room, group, or student double-bookings; rooms too small; components with no slot or wrong meetings per week;
+          instructors teaching while enrolled, or placed in banned or discouraged slots.
+          It can also flag Outlook room-booking conflicts and meetings that still lack a reservation.
+        </aside>
+      </section>
+
+      <!-- Slide 17: System architecture (~1 min) -->
+      <section class="slide-figures slide-arch">
+        <p class="section-tag">System Design</p>
+        <h2>System Architecture</h2>
+        <div class="figure-single">
+          <img src="figures/system-architecture-sequence.svg" alt="System architecture swimlane diagram">
+        </div>
+        <ul>
+          <li>Baseline generation: config → CP-SAT solver worker → weekly schedule artifact</li>
+          <li>Maintenance loop: planner edits in UI → verification → Outlook sync</li>
+          <li>FastAPI backend orchestrates solves, tasks, and WebSocket logs between React frontend and Python workers
+          </li>
+        </ul>
+        <aside class="notes">
+          This swimlane diagram shows how weekly baseline generation and calendar maintenance connect. The React
+          frontend covers settings, timetable,
+          and checks. The FastAPI backend stores schedule configuration, dispatches optimization tasks to worker nodes,
+          and
+          streams progress back to the UI. Python workers run the CP-SAT solver for baseline generation and verification
+          plus Outlook
+          sync for maintenance. The separation keeps the UI responsive while solver jobs run asynchronously. The weekly
+          baseline flows into the timetable workspace; planner edits during maintenance trigger verification and
+          Outlook sync.
+        </aside>
+      </section>
+
+      <!-- Slide 18: Results — contribution (~1 min) -->
+      <section class="slide-compact">
+        <p class="section-tag">Results</p>
+        <h2>Research Contribution</h2>
+        <p class="small-text">Literature and practice split timetable generation from maintenance; strong solvers and
+          usable tooling rarely meet in one system.</p>
+        <ul>
+          <li><strong>Model &amp; optimization</strong> — CP-SAT solver on CB-CTT for a single-campus university: hard
+            constraints, 12 normalized soft terms, feasible weekly baselines on full Innopolis data</li>
+          <li><strong>Product</strong> — human-in-the-loop assistant for baseline generation and post-publication
+            maintenance; planner edits, checks workspace, Outlook room sync; deployed at the Department of Education
+            (~1,000 students), replacing Sheets and manual cross-checks</li>
+        </ul>
+        <p class="contribution">
+          Contribution: capable optimization and operable software, designed and validated together
+        </p>
+        <aside class="notes">
+          I tie the contribution back to the open problems from the literature review. On optimization, the thesis
+          delivers
+          a CP-SAT solver workflow on a formal CB-CTT model that scales to real institutional input — not a competition
+          instance.
+          On the product side, the assistant addresses the lifecycle gap Kingston describes: baseline generation and
+          calendar maintenance in one tool, with issues flagged in verification reports. It is deployed at Innopolis
+          DoE with Outlook integration — replacing Sheets and manual cross-checks. Both halves matter: without the
+          solver,
+          the checks are hollow; without the product, the solver does not reach daily operations.
+        </aside>
+      </section>
+
+      <!-- Slide 19: Early exploration — spreadsheet path (~1 min) -->
+      <section class="slide-figures">
+        <p class="section-tag">Results</p>
+        <h2>Early Exploration: Spreadsheet Parser &amp; Plugin</h2>
+        <ul>
+          <li>Parser converts heterogeneous Google Sheets schedules into structured CB-CTT config for the optimizer</li>
+          <li>Plugin prototype adds in-sheet conflict detection — promising for validating the approach</li>
+          <li>Limit: spreadsheets are too vague and unrestricted to build a reliable, rule-enforced system on top</li>
+          <li>Both informed the pivot to a dedicated web assistant</li>
+        </ul>
+        <div class="figure-grid">
+          <figure>
+            <img src="figures/core-courses-timetable-spreadsheet.png" alt="Spreadsheet timetable source">
+            <figcaption>Source schedules in Google Sheets</figcaption>
+          </figure>
+          <figure>
+            <img src="figures/spreadsheet-plugin-conflicts-capacity-exceeded.png"
+              alt="Spreadsheet plugin conflict detection">
+            <figcaption>Plugin — automated conflict detection</figcaption>
+          </figure>
+        </div>
+        <aside class="notes">
+          Before the full assistant, I explored staying inside the planner's existing toolchain. I built a spreadsheet
+          parser that reads heterogeneous Google Sheets and converts them into structured CB-CTT configuration the
+          optimizer expects — bridging the gap between ad hoc sheets and solver input. I also prototyped a Google
+          Sheets
+          plugin that flags conflicts such as room over-capacity or instructor double-booking. This confirmed that
+          automated
+          checks are valuable and that planners would use them. But spreadsheets are inherently vague — implicit
+          conventions,
+          free-form cells. A proper system needs reproducible solves and integrated checks. That is why the thesis
+          pivoted from plugin to dedicated assistant, while keeping the parser as a migration path from legacy sheets.
+        </aside>
+      </section>
+
+      <!-- Slide 20: Limitations, Future Work, Questions (~1 min) -->
+      <section class="questions-slide slide-compact">
+        <p class="section-tag">Summary</p>
+        <h2>Limitations &amp; Future Work</h2>
+        <div class="two-col">
+          <div>
+            <h3>Limitations</h3>
+            <ul>
+              <li>Validated on a small university (~1,000 students) — scale not yet proven</li>
+              <li>Limited data on instructor time preferences in evaluation</li>
+              <li>UX and rollout are functional but not polished; adoption path needs work</li>
+              <li>Too tailored to Innopolis rules — not yet generic for all HEIs and schools</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Future work</h3>
+            <ul>
+              <li>AI assist: natural-language requests (“room 105 blocked — move the lecture”) with solver-backed
+                suggestions; text → structured preferences</li>
+              <li>Finer-grained optimizer tuning</li>
+              <li>Plugin system for institutional extensions (booking, SIS, custom checks)</li>
+              <li>Code quality, documentation, and path toward a widely usable open-source product</li>
+            </ul>
+          </div>
+        </div>
+        <h2>Questions?</h2>
+        <aside class="notes">
+          To conclude: the system has clear limitations. It was validated at a relatively small university, with limited
+          data on instructor preferences. The user experience and deployment story work in practice, but they are not
+          fully polished yet. And the current model is still closely tied to Innopolis-specific rules — the long-term
+          goal is something that fits universities and schools more broadly, not one institution. Future work can
+          address these gaps and go further. One direction is AI assistance: a planner could say in plain language that
+          room 105 will be occupied and a lecture must move, and the system would propose feasible alternatives; or
+          describe instructor preferences in text and have them converted into structured config. Another direction is
+          finer optimizer tuning. A plugin architecture would make it easier to add booking systems, SIS hooks, or
+          custom
+          checks without forking the core. Finally, improving code quality and documentation could turn this from a
+          thesis prototype into a credible open-source scheduling tool. Thank you for your attention. I am happy to
+          take your questions.
+        </aside>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/reveal.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/5.1.0/plugin/notes/notes.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script>
+    const katexOpts = {
+      delimiters: [
+        { left: "\\[", right: "\\]", display: true },
+        { left: "\\(", right: "\\)", display: false },
+      ],
+      throwOnError: false,
+    };
+
+    function renderMath() {
+      if (typeof renderMathInElement === "function") {
+        renderMathInElement(document.querySelector(".reveal .slides"), katexOpts);
+      }
+    }
+
+    Reveal.initialize({
+      hash: true,
+      slideNumber: "c/t",
+      width: 1280,
+      height: 720,
+      margin: 0.08,
+      plugins: [RevealNotes],
+    }).then(() => {
+      renderMath();
+      Reveal.on("slidechanged", renderMath);
+    });
+  </script>
+</body>
+
+</html>

@@ -27,6 +27,17 @@ typst compile thesis.typ
 
 To add signatures on title, see [Signatures](#signatures) section.
 
+## Defense presentation (`index.html`)
+
+Thesis defense slides are a single-page [Reveal.js](https://revealjs.com/) deck in `index.html` (no build step; assets load from CDNs).
+
+From the repository root, serve the folder locally:
+
+```bash
+python -m http.server
+```
+
+Open [http://localhost:8000/index.html](http://localhost:8000/index.html). Use arrow keys or space to navigate; press `F` for fullscreen, `Esc` for slide overview.
 
 ## Title page (`title.pdf`)
 
@@ -58,6 +69,7 @@ Open `thesis.typ` in the IDE and run **Typst: Pin the Main File to the Currently
 | Path | Role |
 |------|------|
 | `thesis.typ` | Main entry |
+| `index.html` | Defense presentation (Reveal.js) |
 | `thesis.pdf` | Compiled thesis |
 | `thesis (signature).pdf` | Compiled thesis with signatures |
 | `Title Page 2026.docx` | Thesis title page source (edit here) |
